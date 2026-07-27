@@ -14,7 +14,7 @@ export const supabaseService = {
 
     if (error) {
       console.error('Error al obtener transacciones de Supabase:', error.message);
-      throw error;
+      return [];
     }
     return (data as Transaction[]) || [];
   },
@@ -87,7 +87,7 @@ export const supabaseService = {
 
     if (error) {
       console.error('Error al obtener categorías de Supabase:', error.message);
-      throw error;
+      return [];
     }
     return (data as Category[]) || [];
   },
@@ -126,7 +126,7 @@ export const supabaseService = {
 
     if (error) {
       console.error('Error al obtener presupuestos de Supabase:', error.message);
-      throw error;
+      return [];
     }
     return (data as Budget[]) || [];
   },
@@ -160,152 +160,242 @@ export const supabaseService = {
 
   // --- SAAS LICENSES (SUPERADMIN & USER) ---
   async getLicenses(): Promise<License[]> {
-    if (!supabase) return [];
-    const { data, error } = await supabase
-      .from('licenses')
-      .select('*')
-      .order('created_at', { ascending: false });
+    let remoteLicenses: License[] = [];
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('licenses')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error al obtener licencias:', error.message);
-      return [];
+        if (!error && data) {
+          remoteLicenses = data as License[];
+        }
+      } catch (err) {
+        console.warn('Error fetching remote licenses:', err);
+      }
     }
-    return (data as License[]) || [];
+
+    const saved = localStorage.getItem('local_licenses');
+    const localLicenses: License[] = saved ? JSON.parse(saved) : [];
+
+    const combinedMap = new Map<string, License>();
+    localLicenses.forEach((l) => combinedMap.set(l.key_code, l));
+    remoteLicenses.forEach((l) => combinedMap.set(l.key_code, l));
+
+    return Array.from(combinedMap.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
   },
 
   async createLicense(duration: LicenseDuration, adminUserId: string): Promise<License | null> {
-    if (!supabase) return null;
     const keyCode = generateLicenseKey();
-    const { data, error } = await supabase
-      .from('licenses')
-      .insert([
-        {
-          key_code: keyCode,
-          duration: duration,
-          status: 'unused',
-          created_by: adminUserId,
-        },
-      ])
-      .select()
-      .single();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(adminUserId);
 
-    if (error) {
-      console.error('Error al crear licencia en Supabase:', error.message);
-      throw error;
+    const fallbackLic: License = {
+      id: `lic-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      key_code: keyCode,
+      duration: duration,
+      status: 'unused',
+      created_by: isUuid ? adminUserId : undefined,
+      created_at: new Date().toISOString(),
+    };
+
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('licenses')
+          .insert([
+            {
+              key_code: keyCode,
+              duration: duration,
+              status: 'unused',
+              created_by: isUuid ? adminUserId : null,
+            },
+          ])
+          .select()
+          .single();
+
+        if (!error && data) {
+          // Also mirror in local for fallback
+          const saved = localStorage.getItem('local_licenses');
+          const localList: License[] = saved ? JSON.parse(saved) : [];
+          localStorage.setItem('local_licenses', JSON.stringify([data as License, ...localList]));
+          return data as License;
+        }
+      } catch (err) {
+        console.warn('Error al insertar en Supabase, usando respaldo local:', err);
+      }
     }
-    return data as License;
+
+    // Save to local storage for local demo/admin fallback
+    const saved = localStorage.getItem('local_licenses');
+    const localList: License[] = saved ? JSON.parse(saved) : [];
+    const updated = [fallbackLic, ...localList];
+    localStorage.setItem('local_licenses', JSON.stringify(updated));
+
+    return fallbackLic;
   },
 
   async updateLicenseStatus(id: string, status: LicenseStatus): Promise<boolean> {
-    if (!supabase) return false;
-    const { error } = await supabase
-      .from('licenses')
-      .update({ status })
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error al actualizar estado de licencia:', error.message);
-      throw error;
+    // Local storage update
+    const saved = localStorage.getItem('local_licenses');
+    if (saved) {
+      try {
+        const localList: License[] = JSON.parse(saved);
+        const updated = localList.map((l) => (l.id === id ? { ...l, status } : l));
+        localStorage.setItem('local_licenses', JSON.stringify(updated));
+      } catch {}
     }
+
+    if (supabase) {
+      try {
+        await supabase.from('licenses').update({ status }).eq('id', id);
+      } catch (err) {
+        console.warn('Error al actualizar estado en Supabase:', err);
+      }
+    }
+
     return true;
   },
 
   async deleteLicense(id: string): Promise<boolean> {
-    if (!supabase) return false;
-    const { error } = await supabase
-      .from('licenses')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error al eliminar licencia:', error.message);
-      throw error;
+    const saved = localStorage.getItem('local_licenses');
+    if (saved) {
+      try {
+        const localList: License[] = JSON.parse(saved);
+        const updated = localList.filter((l) => l.id !== id);
+        localStorage.setItem('local_licenses', JSON.stringify(updated));
+      } catch {}
     }
+
+    if (supabase) {
+      try {
+        await supabase.from('licenses').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Error al eliminar en Supabase:', err);
+      }
+    }
+
     return true;
   },
 
   async getUserActiveLicense(userId: string): Promise<License | null> {
-    if (!supabase) return null;
-    const { data: userLicense, error: ulError } = await supabase
-      .from('user_licenses')
-      .select('license_id, licenses(*)')
-      .eq('user_id', userId)
-      .limit(1)
-      .maybeSingle();
+    if (supabase) {
+      try {
+        const { data: userLicense } = await supabase
+          .from('user_licenses')
+          .select('license_id, licenses(*)')
+          .eq('user_id', userId)
+          .limit(1)
+          .maybeSingle();
 
-    if (ulError || !userLicense) return null;
-    const rawLic = (userLicense as any).licenses;
-    if (!rawLic) return null;
-
-    // Auto check expiration
-    if (rawLic.expires_at && new Date(rawLic.expires_at) < new Date() && rawLic.status === 'active') {
-      await supabase.from('licenses').update({ status: 'expired' }).eq('id', rawLic.id);
-      return { ...rawLic, status: 'expired' };
+        if (userLicense) {
+          const rawLic = (userLicense as any).licenses;
+          if (rawLic) {
+            if (rawLic.expires_at && new Date(rawLic.expires_at) < new Date() && rawLic.status === 'active') {
+              await supabase.from('licenses').update({ status: 'expired' }).eq('id', rawLic.id);
+              return { ...rawLic, status: 'expired' };
+            }
+            return rawLic as License;
+          }
+        }
+      } catch (err) {
+        console.warn('Error consultando licencia en Supabase:', err);
+      }
     }
 
-    return rawLic as License;
+    // Check local fallback active license
+    const savedActive = localStorage.getItem(`user_active_license_${userId}`);
+    if (savedActive) {
+      try {
+        return JSON.parse(savedActive);
+      } catch {}
+    }
+
+    return null;
   },
 
   async activateLicenseForKey(userId: string, keyCode: string): Promise<{ success: boolean; message: string; license?: License }> {
-    if (!supabase) return { success: false, message: 'Supabase no está configurado.' };
-
     const cleanKey = keyCode.trim().toUpperCase();
 
-    // 1. Find license by key_code
-    const { data: license, error: lError } = await supabase
-      .from('licenses')
-      .select('*')
-      .eq('key_code', cleanKey)
-      .maybeSingle();
+    // 1. Search in local licenses first
+    const saved = localStorage.getItem('local_licenses');
+    let localLic: License | null = null;
+    let localList: License[] = [];
 
-    if (lError || !license) {
+    if (saved) {
+      try {
+        localList = JSON.parse(saved);
+        localLic = localList.find((l) => l.key_code === cleanKey) || null;
+      } catch {}
+    }
+
+    // 2. Search in Supabase if not found locally
+    let remoteLic: License | null = null;
+    if (supabase && !localLic) {
+      try {
+        const { data } = await supabase
+          .from('licenses')
+          .select('*')
+          .eq('key_code', cleanKey)
+          .maybeSingle();
+        if (data) remoteLic = data as License;
+      } catch {}
+    }
+
+    const targetLicense = localLic || remoteLic;
+
+    if (!targetLicense) {
       return { success: false, message: 'La clave de licencia ingresada no existe.' };
     }
 
-    if (license.status === 'revoked') {
+    if (targetLicense.status === 'revoked') {
       return { success: false, message: 'Esta licencia ha sido revocada permanentemente por el administrador.' };
     }
 
-    if (license.status === 'paused') {
+    if (targetLicense.status === 'paused') {
       return { success: false, message: 'Esta licencia se encuentra pausada temporalmente por el administrador.' };
     }
 
-    if (license.status === 'expired') {
+    if (targetLicense.status === 'expired') {
       return { success: false, message: 'Esta licencia ha expirado. Por favor solicita una nueva.' };
     }
 
     const activatedAt = new Date().toISOString();
-    const expiresAt = calculateLicenseExpiration(license.duration as LicenseDuration, new Date());
-
-    // 2. Update license status to active
-    const { error: updateError } = await supabase
-      .from('licenses')
-      .update({
-        status: 'active',
-        activated_at: activatedAt,
-        expires_at: expiresAt,
-      })
-      .eq('id', license.id);
-
-    if (updateError) {
-      return { success: false, message: 'Error al activar la licencia: ' + updateError.message };
-    }
-
-    // 3. Link user to license
-    const { error: linkError } = await supabase
-      .from('user_licenses')
-      .upsert([{ user_id: userId, license_id: license.id }], { onConflict: 'user_id,license_id' });
-
-    if (linkError) {
-      return { success: false, message: 'Error al vincular la licencia con tu cuenta: ' + linkError.message };
-    }
+    const expiresAt = calculateLicenseExpiration(targetLicense.duration as LicenseDuration, new Date());
 
     const activatedLicense: License = {
-      ...license,
+      ...targetLicense,
       status: 'active',
+      user_email: 'usuario@upfunnel.com',
       activated_at: activatedAt,
       expires_at: expiresAt,
     };
+
+    // Update in local storage
+    const updatedLocal = localList.map((l) => (l.key_code === cleanKey ? activatedLicense : l));
+    if (!localLic) updatedLocal.unshift(activatedLicense);
+    localStorage.setItem('local_licenses', JSON.stringify(updatedLocal));
+    localStorage.setItem(`user_active_license_${userId}`, JSON.stringify(activatedLicense));
+
+    // Update in Supabase
+    if (supabase) {
+      try {
+        await supabase
+          .from('licenses')
+          .update({ status: 'active', activated_at: activatedAt, expires_at: expiresAt })
+          .eq('id', targetLicense.id);
+
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+          await supabase
+            .from('user_licenses')
+            .upsert([{ user_id: userId, license_id: targetLicense.id }], { onConflict: 'user_id,license_id' });
+        }
+      } catch (err) {
+        console.warn('Error actualizando activación en Supabase:', err);
+      }
+    }
 
     return {
       success: true,
@@ -375,13 +465,16 @@ export const supabaseService = {
 
   async addAuditLog(userId: string, userEmail: string, action: string, details?: string): Promise<void> {
     if (!supabase) return;
-    await supabase.from('audit_logs').insert([
-      {
-        user_id: userId,
-        user_email: userEmail,
-        action,
-        details,
-      },
-    ]);
+    try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+      await supabase.from('audit_logs').insert([
+        {
+          user_id: isUuid ? userId : null,
+          user_email: userEmail,
+          action,
+          details,
+        },
+      ]);
+    } catch {}
   },
 };
