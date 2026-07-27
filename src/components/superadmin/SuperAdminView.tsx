@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, isSuperAdminEmail } from '../../context/AuthContext';
 import { supabaseService } from '../../lib/supabaseService';
 import { License, Profile, LicenseDuration, LicenseStatus, AuditLog } from '../../types';
 import { getDurationLabel, getStatusBadgeLabel } from '../../lib/licenseUtils';
@@ -22,6 +22,7 @@ import {
   UserCheck,
   UserX,
   ShieldAlert,
+  Lock,
 } from 'lucide-react';
 
 export const SuperAdminView: React.FC = () => {
@@ -124,6 +125,13 @@ export const SuperAdminView: React.FC = () => {
 
   const handleToggleRole = async (targetUser: Profile) => {
     if (!user) return;
+
+    // Protection rule for Root SuperAdmin
+    if (isSuperAdminEmail(targetUser.email)) {
+      alert('🔒 El usuario Root SuperAdmin (gabriel.au2023@gmail.com) está protegido por la arquitectura del sistema y su rol no puede ser modificado.');
+      return;
+    }
+
     const newRole = targetUser.role === 'superadmin' ? 'user' : 'superadmin';
     if (!confirm(`¿Cambiar el rol de ${targetUser.email} a "${newRole}"?`)) return;
 
@@ -143,6 +151,13 @@ export const SuperAdminView: React.FC = () => {
 
   const handleToggleBan = async (targetUser: Profile) => {
     if (!user) return;
+
+    // Protection rule for Root SuperAdmin
+    if (isSuperAdminEmail(targetUser.email)) {
+      alert('🔒 El usuario Root SuperAdmin (gabriel.au2023@gmail.com) está protegido y no puede ser baneado del sistema.');
+      return;
+    }
+
     const newBanState = !targetUser.is_banned;
     if (!confirm(`¿${newBanState ? 'Banear' : 'Desbanear'} a ${targetUser.email}?`)) return;
 
@@ -460,58 +475,71 @@ export const SuperAdminView: React.FC = () => {
                     <th className="p-4">Correo</th>
                     <th className="p-4">Rol de Sistema</th>
                     <th className="p-4">Estado</th>
-                    <th className="p-4 text-right">Acciones</th>
+                    <th className="p-4 text-right">Acciones de Control</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#94A3B8]/15">
-                  {filteredUsers.map((u) => (
-                    <tr key={u.id} className="hover:bg-[#94A3B8]/5 transition-colors">
-                      <td className="p-4 font-bold text-[#FFFFFF]">
-                        {u.full_name || 'Sin nombre'}
-                      </td>
-                      <td className="p-4 text-[#94A3B8] font-mono">{u.email}</td>
-                      <td className="p-4">
-                        <span
-                          className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase ${
-                            u.role === 'superadmin'
-                              ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40 uf-glow-sm'
-                              : 'bg-[#94A3B8]/10 text-[#94A3B8] border border-[#94A3B8]/30'
-                          }`}
-                        >
-                          {u.role === 'superadmin' ? 'SUPERADMIN' : 'USUARIO'}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        {u.is_banned ? (
-                          <span className="text-rose-400 font-bold flex items-center gap-1">
-                            <ShieldAlert className="w-3.5 h-3.5" /> Baneado
+                  {filteredUsers.map((u) => {
+                    const isRoot = isSuperAdminEmail(u.email);
+                    return (
+                      <tr key={u.id} className="hover:bg-[#94A3B8]/5 transition-colors">
+                        <td className="p-4 font-bold text-[#FFFFFF]">
+                          {u.full_name || 'Sin nombre'}
+                        </td>
+                        <td className="p-4 text-[#94A3B8] font-mono">{u.email}</td>
+                        <td className="p-4">
+                          <span
+                            className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase ${
+                              isRoot
+                                ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40 uf-glow-sm'
+                                : u.role === 'superadmin'
+                                ? 'bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/30'
+                                : 'bg-[#94A3B8]/10 text-[#94A3B8] border border-[#94A3B8]/30'
+                            }`}
+                          >
+                            {isRoot ? 'ROOT SUPERADMIN (PROTEGIDO)' : u.role === 'superadmin' ? 'SUPERADMIN' : 'USUARIO'}
                           </span>
-                        ) : (
-                          <span className="text-[#00E5FF] font-bold flex items-center gap-1">
-                            <UserCheck className="w-3.5 h-3.5" /> Activo
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-4 text-right space-x-2">
-                        <button
-                          onClick={() => handleToggleRole(u)}
-                          className="px-3 py-1.5 rounded-xl border border-[#00E5FF]/30 text-[#00E5FF] text-[11px] font-bold hover:bg-[#00E5FF]/10 transition-colors"
-                        >
-                          {u.role === 'superadmin' ? 'Cambiar a User' : 'Ascender a SuperAdmin'}
-                        </button>
-                        <button
-                          onClick={() => handleToggleBan(u)}
-                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${
-                            u.is_banned
-                              ? 'border-[#00E5FF]/40 text-[#00E5FF]'
-                              : 'border-rose-600/40 text-rose-400 hover:bg-rose-950/40'
-                          }`}
-                        >
-                          {u.is_banned ? 'Desbanear' : 'Banear'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="p-4">
+                          {u.is_banned ? (
+                            <span className="text-rose-400 font-bold flex items-center gap-1">
+                              <ShieldAlert className="w-3.5 h-3.5" /> Baneado
+                            </span>
+                          ) : (
+                            <span className="text-[#00E5FF] font-bold flex items-center gap-1">
+                              <UserCheck className="w-3.5 h-3.5" /> Activo
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4 text-right space-x-2">
+                          {isRoot ? (
+                            <span className="text-[11px] font-bold text-[#94A3B8] flex items-center justify-end gap-1">
+                              <Lock className="w-3.5 h-3.5 text-[#00E5FF]" /> Protegido
+                            </span>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleToggleRole(u)}
+                                className="px-3 py-1.5 rounded-xl border border-[#00E5FF]/30 text-[#00E5FF] text-[11px] font-bold hover:bg-[#00E5FF]/10 transition-colors"
+                              >
+                                {u.role === 'superadmin' ? 'Cambiar a User' : 'Ascender a SuperAdmin'}
+                              </button>
+                              <button
+                                onClick={() => handleToggleBan(u)}
+                                className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${
+                                  u.is_banned
+                                    ? 'border-[#00E5FF]/40 text-[#00E5FF]'
+                                    : 'border-rose-600/40 text-rose-400 hover:bg-rose-950/40'
+                                }`}
+                              >
+                                {u.is_banned ? 'Desbanear' : 'Banear'}
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

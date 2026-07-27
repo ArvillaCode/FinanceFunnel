@@ -20,7 +20,7 @@ interface AuthContextType {
 
 const SUPERADMIN_EMAILS = ['gabriel.au2023@gmail.com'];
 
-const isSuperAdminEmail = (email?: string): boolean => {
+export const isSuperAdminEmail = (email?: string): boolean => {
   if (!email) return false;
   const e = email.toLowerCase();
   return e.includes('gabriel.au') || SUPERADMIN_EMAILS.includes(e);
@@ -47,10 +47,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isDemoUser, setIsDemoUser] = useState<boolean>(() => {
-    return user ? isSuperAdminEmail(user.email) ? false : false : false;
+    return user ? !isSuperAdminEmail(user.email) && user.email === 'invitado@upfunnel.com' : false;
   });
   const [activeLicense, setActiveLicense] = useState<License | null>(null);
 
+  // Save active profile persistently
   useEffect(() => {
     if (user && !isDemoUser) {
       localStorage.setItem('finance_user_profile', JSON.stringify(user));
@@ -142,11 +143,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           const lic = await supabaseService.getUserActiveLicense(session.user.id);
           setActiveLicense(lic);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setIsDemoUser(false);
-          setActiveLicense(null);
         }
+        // NOTE: We DO NOT clear user on SIGNED_OUT automatic event to preserve local session persistence across refreshes!
       });
 
       return () => {
@@ -173,14 +171,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .eq('id', data.user.id)
           .maybeSingle();
 
-        setUser({
+        const profileObj: Profile = {
           id: data.user.id,
           full_name: profile?.full_name || 'Gabriel Aristizábal',
           email: userEmail,
           role: userRole,
           is_banned: false,
           currency: 'USD',
-        });
+        };
+
+        setUser(profileObj);
+        localStorage.setItem('finance_user_profile', JSON.stringify(profileObj));
 
         const lic = await supabaseService.getUserActiveLicense(data.user.id);
         setActiveLicense(lic);
@@ -191,13 +192,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Local / Fallback Sign In for SuperAdmin or Demo
     if (isSuper) {
       setIsDemoUser(false);
-      setUser({
+      const superObj: Profile = {
         id: 'superadmin-gabriel-id',
         full_name: 'Gabriel Aristizábal',
         email: email || 'gabriel.au2023@gmail.com',
         role: 'superadmin',
         currency: 'USD',
-      });
+      };
+      setUser(superObj);
+      localStorage.setItem('finance_user_profile', JSON.stringify(superObj));
       return {};
     }
 
@@ -229,26 +232,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsDemoUser(false);
         const userRole = resolveRole(email);
 
-        setUser({
+        const profileObj: Profile = {
           id: data.user.id,
           full_name: fullName,
           email: email,
           role: userRole,
           currency: 'USD',
-        });
+        };
+
+        setUser(profileObj);
+        localStorage.setItem('finance_user_profile', JSON.stringify(profileObj));
         return {};
       }
     }
 
     // Fallback sign up
     setIsDemoUser(!isSuper);
-    setUser({
+    const profileObj: Profile = {
       id: isSuper ? 'superadmin-gabriel-id' : `user-${Date.now()}`,
       full_name: fullName,
       email: email,
       role: isSuper ? 'superadmin' : 'user',
       currency: 'USD',
-    });
+    };
+    setUser(profileObj);
+    localStorage.setItem('finance_user_profile', JSON.stringify(profileObj));
     return {};
   };
 
