@@ -18,6 +18,8 @@ interface AuthContextType {
   enableDemoMode: () => void;
 }
 
+const SUPERADMIN_EMAILS = ['gabriel.au2023@gmail.com'];
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -25,7 +27,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const saved = localStorage.getItem('finance_user_profile');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed?.email && SUPERADMIN_EMAILS.includes(parsed.email.toLowerCase())) {
+          return { ...parsed, role: 'superadmin' };
+        }
+        return parsed;
       } catch {
         return null;
       }
@@ -52,6 +58,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user?.id]);
 
+  const resolveRole = (email?: string, dbRole?: UserRole): UserRole => {
+    if (email && SUPERADMIN_EMAILS.includes(email.toLowerCase())) {
+      return 'superadmin';
+    }
+    return dbRole || 'user';
+  };
+
   useEffect(() => {
     async function initAuth() {
       if (isSupabaseConfigured && supabase) {
@@ -65,18 +78,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .eq('id', session.user.id)
               .maybeSingle();
 
+            const userEmail = session.user.email || '';
+            const userRole = resolveRole(userEmail, profile?.role);
+
+            // Si es un SuperAdmin por email pero aún no lo tiene grabado en DB, lo actualizamos automáticamente
+            if (userRole === 'superadmin' && profile?.role !== 'superadmin') {
+              supabase.from('profiles').update({ role: 'superadmin' }).eq('id', session.user.id);
+            }
+
             const profileObj: Profile = {
               id: session.user.id,
-              full_name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuario',
-              email: session.user.email || '',
-              role: profile?.role || 'user',
+              full_name: profile?.full_name || session.user.user_metadata?.full_name || userEmail.split('@')[0] || 'Usuario',
+              email: userEmail,
+              role: userRole,
               is_banned: profile?.is_banned || false,
               currency: profile?.currency || 'USD',
             };
 
             setUser(profileObj);
 
-            // Fetch license
             const lic = await supabaseService.getUserActiveLicense(session.user.id);
             setActiveLicense(lic);
           }
@@ -99,11 +119,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .eq('id', session.user.id)
             .maybeSingle();
 
+          const userEmail = session.user.email || '';
+          const userRole = resolveRole(userEmail, profile?.role);
+
+          if (userRole === 'superadmin' && profile?.role !== 'superadmin') {
+            supabase.from('profiles').update({ role: 'superadmin' }).eq('id', session.user.id);
+          }
+
           const profileObj: Profile = {
             id: session.user.id,
-            full_name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuario',
-            email: session.user.email || '',
-            role: profile?.role || 'user',
+            full_name: profile?.full_name || session.user.user_metadata?.full_name || userEmail.split('@')[0] || 'Usuario',
+            email: userEmail,
+            role: userRole,
             is_banned: profile?.is_banned || false,
             currency: 'USD',
           };
@@ -119,7 +146,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
 
-      // Realtime License & Profile Status Channel for Immediate Revocation!
       const channel = supabase
         .channel('realtime_security_guard')
         .on(
@@ -137,7 +163,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           { event: 'UPDATE', schema: 'public', table: 'profiles' },
           async (payload) => {
             if (user && payload.new.id === user.id) {
-              setUser((prev) => (prev ? { ...prev, role: payload.new.role, is_banned: payload.new.is_banned } : null));
+              const resolved = resolveRole(user.email, payload.new.role);
+              setUser((prev) => (prev ? { ...prev, role: resolved, is_banned: payload.new.is_banned } : null));
             }
           }
         )
@@ -162,11 +189,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .eq('id', data.user.id)
           .maybeSingle();
 
+        const userEmail = data.user.email || email;
+        const userRole = resolveRole(userEmail, profile?.role);
+
+        if (userRole === 'superadmin' && profile?.role !== 'superadmin') {
+          supabase.from('profiles').update({ role: 'superadmin' }).eq('id', data.user.id);
+        }
+
         setUser({
           id: data.user.id,
-          full_name: profile?.full_name || data.user.user_metadata?.full_name || email.split('@')[0],
-          email: data.user.email || email,
-          role: profile?.role || 'user',
+          full_name: profile?.full_name || data.user.user_metadata?.full_name || userEmail.split('@')[0],
+          email: userEmail,
+          role: userRole,
           is_banned: profile?.is_banned || false,
           currency: 'USD',
         });
@@ -178,12 +212,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Demo sign in
+    const isSuper = SUPERADMIN_EMAILS.includes(email.toLowerCase());
     setIsDemoUser(true);
     setUser({
       id: `demo-${Date.now()}`,
-      full_name: email.split('@')[0] ? email.split('@')[0].toUpperCase() : 'Usuario Demo',
+      full_name: email.split('@')[0] ? email.split('@')[0].toUpperCase() : 'Gabriel Aristizábal',
       email: email,
-      role: 'user',
+      role: isSuper ? 'superadmin' : 'user',
       currency: 'USD',
     });
     return {};
@@ -191,6 +226,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (fullName: string, email: string, password?: string): Promise<{ error?: string }> => {
     if (isSupabaseConfigured && supabase && password) {
+      const isSuper = SUPERADMIN_EMAILS.includes(email.toLowerCase());
       const { error, data } = await supabase.auth.signUp({
         email,
         password,
@@ -201,11 +237,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) return { error: error.message };
       if (data.user) {
         setIsDemoUser(false);
+        const userRole = resolveRole(email, isSuper ? 'superadmin' : 'user');
+
+        // Actualización explícita en Supabase si es superadmin
+        if (userRole === 'superadmin') {
+          supabase.from('profiles').upsert({ id: data.user.id, full_name: fullName, email, role: 'superadmin' });
+        }
+
         setUser({
           id: data.user.id,
           full_name: fullName,
           email: email,
-          role: 'user',
+          role: userRole,
           currency: 'USD',
         });
       }
@@ -213,12 +256,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Demo sign up
+    const isSuper = SUPERADMIN_EMAILS.includes(email.toLowerCase());
     setIsDemoUser(true);
     setUser({
       id: `user-${Date.now()}`,
       full_name: fullName,
       email: email,
-      role: 'user',
+      role: isSuper ? 'superadmin' : 'user',
       currency: 'USD',
     });
     return {};
@@ -267,14 +311,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsDemoUser(true);
     setUser({
       id: 'demo-user-guest',
-      full_name: 'Usuario Demo',
-      email: 'invitado@upfunnel.com',
-      role: 'user',
+      full_name: 'Gabriel Aristizábal (SuperAdmin Demo)',
+      email: 'gabriel.au2023@gmail.com',
+      role: 'superadmin',
       currency: 'USD',
     });
   };
 
-  // License Validity Check
+  // License Validity Check (SuperAdmin always bypasses license gate)
   const isLicenseValid = Boolean(
     isDemoUser ||
       user?.role === 'superadmin' ||
