@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard,
   ArrowRightLeft,
@@ -8,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   PlusCircle,
+  KeyRound,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -25,6 +27,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
   onOpenNewTxModal,
 }) => {
+  const { user } = useAuth();
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'transactions', label: 'Transacciones', icon: ArrowRightLeft },
@@ -32,6 +36,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'categories', label: 'Categorías', icon: Tags },
     { id: 'settings', label: 'Configuración', icon: Settings },
   ];
+
+  if (user?.role === 'superadmin') {
+    navItems.unshift({ id: 'superadmin', label: 'Panel SuperAdmin', icon: KeyRound });
+  }
 
   return (
     <aside
@@ -69,6 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeView === item.id;
+          const isSuperAdminItem = item.id === 'superadmin';
           return (
             <button
               key={item.id}
@@ -76,10 +85,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-sm font-medium transition-all ${
                 isActive
                   ? 'bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-[#00E5FF] font-bold shadow-xs uf-glow-sm'
+                  : isSuperAdminItem
+                  ? 'text-[#00E5FF] hover:bg-[#00E5FF]/10 font-bold'
                   : 'text-[#94A3B8] hover:bg-[#94A3B8]/10 hover:text-[#FFFFFF]'
               } ${isCollapsed ? 'justify-center px-0' : ''}`}
             >
-              <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-[#00E5FF]' : ''}`} />
+              <Icon className={`w-5 h-5 shrink-0 ${isActive || isSuperAdminItem ? 'text-[#00E5FF]' : ''}`} />
               {!isCollapsed && <span>{item.label}</span>}
             </button>
           );
@@ -89,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Sidebar Footer */}
       {!isCollapsed && (
         <div className="p-4 border-t border-[#94A3B8]/15 text-[11px] text-[#94A3B8] text-center font-mono">
-          Upfunnel Finance v1.0
+          Upfunnel Finance SaaS v1.0
         </div>
       )}
     </aside>

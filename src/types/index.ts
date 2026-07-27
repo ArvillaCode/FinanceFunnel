@@ -2,12 +2,18 @@ export type TransactionType = 'income' | 'expense';
 
 export type CategoryType = 'income' | 'expense' | 'both';
 
+export type UserRole = 'user' | 'superadmin';
+
+export type LicenseDuration = '1_month' | '3_months' | '6_months' | '1_year' | 'unlimited';
+
+export type LicenseStatus = 'unused' | 'active' | 'paused' | 'revoked' | 'expired';
+
 export interface Category {
   id: string;
   user_id?: string;
   name: string;
-  icon: string; // Lucide icon name
-  color: string; // Hex color code or Tailwind color class
+  icon: string;
+  color: string;
   type: CategoryType;
   is_default?: boolean;
   created_at?: string;
@@ -20,7 +26,7 @@ export interface Transaction {
   amount: number;
   description: string;
   category_id: string;
-  transaction_date: string; // YYYY-MM-DD
+  transaction_date: string;
   notes?: string;
   created_at?: string;
   updated_at?: string;
@@ -29,10 +35,10 @@ export interface Transaction {
 export interface Budget {
   id: string;
   user_id?: string;
-  category_id?: string | null; // null for overall general budget
-  amount: number; // limit amount
-  month: number; // 1 - 12
-  year: number; // e.g. 2026
+  category_id?: string | null;
+  amount: number;
+  month: number;
+  year: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -41,11 +47,41 @@ export interface Profile {
   id: string;
   full_name: string;
   email: string;
+  role?: UserRole;
+  is_banned?: boolean;
   currency: CurrencyCode;
   avatar_url?: string;
   monthly_budget_target?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface License {
+  id: string;
+  key_code: string;
+  duration: LicenseDuration;
+  status: LicenseStatus;
+  created_at: string;
+  activated_at?: string | null;
+  expires_at?: string | null;
+  created_by?: string;
+  user_email?: string | null;
+}
+
+export interface UserLicense {
+  id: string;
+  user_id: string;
+  license_id: string;
+  assigned_at: string;
+}
+
+export interface AuditLog {
+  id: string;
+  user_id?: string;
+  user_email?: string;
+  action: string;
+  details?: string;
+  created_at: string;
 }
 
 export type CurrencyCode = 'USD' | 'EUR' | 'MXN' | 'COP' | 'ARS' | 'CLP' | 'PEN';
@@ -69,8 +105,8 @@ export interface TransactionFilter {
 }
 
 export interface MonthlySummary {
-  monthName: string; // e.g. "Feb 2026"
-  yearMonth: string; // "2026-02"
+  monthName: string;
+  yearMonth: string;
   income: number;
   expenses: number;
   balance: number;

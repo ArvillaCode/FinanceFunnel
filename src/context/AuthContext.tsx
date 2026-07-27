@@ -1,11 +1,15 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Profile } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { Profile, UserRole, License } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabaseService } from '../lib/supabaseService';
 
 interface AuthContextType {
   user: Profile | null;
   isLoading: boolean;
   isDemoUser: boolean;
+  activeLicense: License | null;
+  isLicenseValid: boolean;
+  refreshUserLicense: () => Promise<void>;
   signIn: (email: string, password?: string) => Promise<{ error?: string }>;
   signUp: (fullName: string, email: string, password?: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
@@ -31,6 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isDemoUser, setIsDemoUser] = useState<boolean>(false);
+  const [activeLicense, setActiveLicense] = useState<License | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -40,7 +45,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
-  // Listener para sincronización en tiempo real de la sesión de Supabase
+  const refreshUserLicense = useCallback(async () => {
+    if (user && isSupabaseConfigured) {
+      const lic = await supabaseService.getUserActiveLicense(user.id);
+      setActiveLicense(lic);
+    }
+  }, [user?.id]);
+
   useEffect(() => {
     async function initAuth() {
       if (isSupabaseConfigured && supabase) {
@@ -54,12 +65,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .eq('id', session.user.id)
               .maybeSingle();
 
-            setUser({
+            const profileObj: Profile = {
               id: session.user.id,
               full_name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuario',
               email: session.user.email || '',
+              role: profile?.role || 'user',
+              is_banned: profile?.is_banned || false,
               currency: profile?.currency || 'USD',
-            });
+            };
+
+            setUser(profileObj);
+
+            // Fetch license
+            const lic = await supabaseService.getUserActiveLicense(session.user.id);
+            setActiveLicense(lic);
           }
         } catch (err) {
           console.error('Error al inicializar sesión de Supabase:', err);
@@ -74,23 +93,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
           setIsDemoUser(false);
-          setUser({
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          const profileObj: Profile = {
             id: session.user.id,
-            full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuario',
+            full_name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuario',
             email: session.user.email || '',
+            role: profile?.role || 'user',
+            is_banned: profile?.is_banned || false,
             currency: 'USD',
-          });
+          };
+
+          setUser(profileObj);
+
+          const lic = await supabaseService.getUserActiveLicense(session.user.id);
+          setActiveLicense(lic);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setIsDemoUser(false);
+          setActiveLicense(null);
         }
       });
 
+      // Realtime License & Profile Status Channel for Immediate Revocation!
+      const channel = supabase
+        .channel('realtime_security_guard')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'licenses' },
+          async () => {
+            if (user) {
+              const lic = await supabaseService.getUserActiveLicense(user.id);
+              setActiveLicense(lic);
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'profiles' },
+          async (payload) => {
+            if (user && payload.new.id === user.id) {
+              setUser((prev) => (prev ? { ...prev, role: payload.new.role, is_banned: payload.new.is_banned } : null));
+            }
+          }
+        )
+        .subscribe();
+
       return () => {
         subscription.unsubscribe();
+        supabase.removeChannel(channel);
       };
     }
-  }, []);
+  }, [user?.id]);
 
   const signIn = async (email: string, password?: string): Promise<{ error?: string }> => {
     if (isSupabaseConfigured && supabase && password) {
@@ -98,22 +156,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) return { error: error.message };
       if (data.user) {
         setIsDemoUser(false);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .maybeSingle();
+
         setUser({
           id: data.user.id,
-          full_name: data.user.user_metadata?.full_name || email.split('@')[0],
+          full_name: profile?.full_name || data.user.user_metadata?.full_name || email.split('@')[0],
           email: data.user.email || email,
+          role: profile?.role || 'user',
+          is_banned: profile?.is_banned || false,
           currency: 'USD',
         });
+
+        const lic = await supabaseService.getUserActiveLicense(data.user.id);
+        setActiveLicense(lic);
       }
       return {};
     }
 
-    // Login en modo demo si no hay Supabase configurado
+    // Demo sign in
     setIsDemoUser(true);
     setUser({
       id: `demo-${Date.now()}`,
       full_name: email.split('@')[0] ? email.split('@')[0].toUpperCase() : 'Usuario Demo',
       email: email,
+      role: 'user',
       currency: 'USD',
     });
     return {};
@@ -135,18 +205,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: data.user.id,
           full_name: fullName,
           email: email,
+          role: 'user',
           currency: 'USD',
         });
       }
       return {};
     }
 
-    // Registro en modo local
+    // Demo sign up
     setIsDemoUser(true);
     setUser({
       id: `user-${Date.now()}`,
       full_name: fullName,
       email: email,
+      role: 'user',
       currency: 'USD',
     });
     return {};
@@ -158,6 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setUser(null);
     setIsDemoUser(false);
+    setActiveLicense(null);
     localStorage.removeItem('finance_user_profile');
     localStorage.removeItem('finance_transactions');
     localStorage.removeItem('finance_budgets');
@@ -196,9 +269,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: 'demo-user-guest',
       full_name: 'Usuario Demo',
       email: 'invitado@upfunnel.com',
+      role: 'user',
       currency: 'USD',
     });
   };
+
+  // License Validity Check
+  const isLicenseValid = Boolean(
+    isDemoUser ||
+      user?.role === 'superadmin' ||
+      (activeLicense && activeLicense.status === 'active')
+  );
 
   return (
     <AuthContext.Provider
@@ -206,6 +287,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         isLoading,
         isDemoUser,
+        activeLicense,
+        isLicenseValid,
+        refreshUserLicense,
         signIn,
         signUp,
         signOut,
