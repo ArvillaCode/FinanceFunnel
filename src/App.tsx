@@ -34,7 +34,7 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0f172a] text-slate-900 dark:text-slate-100 transition-colors">
+    <div className="min-h-screen flex flex-col bg-[#080C14] text-[#FFFFFF] font-['Inter'] transition-colors">
       {/* Top Bar */}
       <Navbar
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
@@ -102,12 +102,16 @@ const MainLayout: React.FC = () => {
   );
 };
 
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
+
 export default function App() {
   return (
-    <AuthProvider>
-      <FinanceProvider>
-        <MainLayout />
-      </FinanceProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <FinanceProvider>
+          <MainLayout />
+        </FinanceProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

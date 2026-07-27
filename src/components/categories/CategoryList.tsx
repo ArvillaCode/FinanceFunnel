@@ -120,7 +120,9 @@ export const CategoryList: React.FC = () => {
                     {cat.name}
                   </h4>
                   {cat.is_default && (
-                    <ShieldCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" title="Categoría Predeterminada" />
+                    <span title="Categoría Predeterminada" className="inline-flex items-center">
+                      <ShieldCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    </span>
                   )}
                 </div>
                 <div className="mt-1">{getTypeBadge(cat.type)}</div>

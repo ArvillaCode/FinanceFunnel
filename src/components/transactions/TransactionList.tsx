@@ -37,6 +37,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const categoryMap = new Map<string, Category>(categories.map((c) => [c.id, c]));
 
@@ -48,6 +50,15 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   const filteredExpenses = filteredTransactions
     .filter((t) => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
+
+  // Pagination calculation
+  const totalItems = filteredTransactions.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const validPage = Math.min(currentPage, totalPages);
+  const paginatedTransactions = filteredTransactions.slice(
+    (validPage - 1) * pageSize,
+    validPage * pageSize
+  );
 
   return (
     <div className="space-y-6">
@@ -208,105 +219,152 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 
       {/* Transaction Items */}
       {filteredTransactions.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <div className="p-12 text-center rounded-2xl bg-[#080C14] border border-[#94A3B8]/20">
+          <p className="text-sm font-semibold text-[#FFFFFF]">
             No se encontraron transacciones
           </p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-[#94A3B8] mt-1">
             Prueba ajustando los filtros de búsqueda o agrega un nuevo movimiento.
           </p>
           <button
             onClick={resetFilter}
-            className="mt-4 px-4 py-2 rounded-xl bg-indigo-50 text-indigo-600 text-xs font-semibold hover:bg-indigo-100 transition-colors"
+            className="mt-4 px-4 py-2 rounded-xl bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/30 text-xs font-semibold hover:bg-[#00E5FF]/20 transition-colors"
           >
             Limpiar Filtros
           </button>
         </div>
       ) : (
-        <div className="space-y-2">
-          {filteredTransactions.map((tx) => {
-            const category = categoryMap.get(tx.category_id) || {
-              id: tx.category_id,
-              name: 'Sin categoría',
-              icon: 'MoreHorizontal',
-              color: '#94a3b8',
-              type: 'expense' as const,
-            };
-            const isIncome = tx.type === 'income';
+        <div className="space-y-3">
+          <div className="space-y-2">
+            {paginatedTransactions.map((tx) => {
+              const category = categoryMap.get(tx.category_id) || {
+                id: tx.category_id,
+                name: 'Sin categoría',
+                icon: 'MoreHorizontal',
+                color: '#94A3B8',
+                type: 'expense' as const,
+              };
+              const isIncome = tx.type === 'income';
 
-            return (
-              <div
-                key={tx.id}
-                className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-md transition-all flex items-center justify-between gap-4 group"
-              >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-xs"
-                    style={{ backgroundColor: `${category.color}18`, color: category.color }}
-                  >
-                    <IconHelper name={category.icon} className="w-5 h-5" />
+              return (
+                <div
+                  key={tx.id}
+                  className="p-4 rounded-2xl bg-[#080C14] border border-[#94A3B8]/20 shadow-xs hover:border-[#00E5FF]/40 transition-all flex items-center justify-between gap-4 group"
+                >
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-xs"
+                      style={{ backgroundColor: `${category.color}18`, color: category.color }}
+                    >
+                      <IconHelper name={category.icon} className="w-5 h-5" />
+                    </div>
+
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-bold text-[#FFFFFF] truncate">
+                        {tx.description}
+                      </h4>
+                      <div className="flex items-center gap-2 text-xs text-[#94A3B8] mt-0.5">
+                        <span className="font-semibold" style={{ color: category.color }}>
+                          {category.name}
+                        </span>
+                        <span>•</span>
+                        <span>{formatDate(tx.transaction_date, 'd MMMM, yyyy')}</span>
+                        {tx.notes && (
+                          <>
+                            <span>•</span>
+                            <span className="truncate italic text-[#94A3B8]/70 max-w-[200px]">
+                              "{tx.notes}"
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                      {tx.description}
-                    </h4>
-                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      <span className="font-semibold" style={{ color: category.color }}>
-                        {category.name}
-                      </span>
-                      <span>•</span>
-                      <span>{formatDate(tx.transaction_date, 'd MMMM, yyyy')}</span>
-                      {tx.notes && (
-                        <>
-                          <span>•</span>
-                          <span className="truncate italic text-slate-400 max-w-[200px]">
-                            "{tx.notes}"
-                          </span>
-                        </>
+                  <div className="flex items-center gap-4 shrink-0">
+                    <span
+                      className={`text-base font-extrabold flex items-center gap-1 ${
+                        isIncome ? 'text-[#00E5FF]' : 'text-[#FFFFFF]'
+                      }`}
+                    >
+                      {isIncome ? (
+                        <ArrowUpRight className="w-4 h-4 text-[#00E5FF]" />
+                      ) : (
+                        <ArrowDownRight className="w-4 h-4 text-[#94A3B8]" />
                       )}
+                      {isIncome ? '+' : '-'}
+                      {formatCurrency(tx.amount, currency)}
+                    </span>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => onEditTransaction(tx)}
+                        className="p-2 rounded-xl text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#94A3B8]/10 transition-colors"
+                        title="Editar"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteId(tx.id)}
+                        className="p-2 rounded-xl text-[#94A3B8] hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
+              );
+            })}
+          </div>
 
-                <div className="flex items-center gap-4 shrink-0">
-                  <span
-                    className={`text-base font-extrabold flex items-center gap-1 ${
-                      isIncome
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-slate-900 dark:text-slate-100'
-                    }`}
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="p-4 rounded-2xl bg-[#080C14] border border-[#94A3B8]/20 flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+              <div className="flex items-center gap-3 text-xs text-[#94A3B8]">
+                <span>
+                  Mostrando { (validPage - 1) * pageSize + 1 } - { Math.min(validPage * pageSize, totalItems) } de { totalItems }
+                </span>
+                <span className="text-[#94A3B8]/40">|</span>
+                <div className="flex items-center gap-1">
+                  <span>Por página:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="bg-[#080C14] text-[#FFFFFF] border border-[#94A3B8]/30 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-[#00E5FF]"
                   >
-                    {isIncome ? (
-                      <ArrowUpRight className="w-4 h-4" />
-                    ) : (
-                      <ArrowDownRight className="w-4 h-4 text-slate-400" />
-                    )}
-                    {isIncome ? '+' : '-'}
-                    {formatCurrency(tx.amount, currency)}
-                  </span>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => onEditTransaction(tx)}
-                      className="p-2 rounded-xl text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                      title="Editar"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteId(tx.id)}
-                      className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
                 </div>
               </div>
-            );
-          })}
+
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={validPage === 1}
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  className="px-3 py-1.5 rounded-xl border border-[#94A3B8]/30 text-xs font-semibold text-[#FFFFFF] disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00E5FF] hover:text-[#00E5FF] transition-all"
+                >
+                  ‹ Anterior
+                </button>
+                <span className="text-xs font-bold text-[#00E5FF] px-2">
+                  {validPage} / {totalPages}
+                </span>
+                <button
+                  disabled={validPage === totalPages}
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  className="px-3 py-1.5 rounded-xl border border-[#94A3B8]/30 text-xs font-semibold text-[#FFFFFF] disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00E5FF] hover:text-[#00E5FF] transition-all"
+                >
+                  Siguiente ›
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

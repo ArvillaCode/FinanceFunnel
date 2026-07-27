@@ -56,19 +56,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/80 dark:bg-[#1e293b]/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-700/60 transition-colors">
+    <header className="sticky top-0 z-30 bg-[#080C14]/90 backdrop-blur-md border-b border-[#94A3B8]/20 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Left: Brand */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+          <div className="w-10 h-10 rounded-xl bg-[#080C14] border border-[#00E5FF]/40 flex items-center justify-center text-[#00E5FF] uf-glow-sm">
             <Wallet className="w-5 h-5" />
           </div>
           <div className="hidden sm:block">
-            <h1 className="text-base font-bold tracking-tight text-slate-900 dark:text-white leading-tight">
-              Finanzas
+            <h1 className="text-base font-bold tracking-tight text-[#FFFFFF] leading-tight flex items-center gap-2">
+              <span>FinanceFunnel</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/30 font-semibold tracking-wider uppercase">
+                Upfunnel
+              </span>
             </h1>
-            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              Control Personal
+            <p className="text-[11px] font-medium text-[#94A3B8]">
+              Gestor Financiero Inteligente
             </p>
           </div>
         </div>
@@ -100,9 +103,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* New Tx Button Desktop */}
           <button
             onClick={onOpenNewTxModal}
-            className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-sm shadow-emerald-600/20 transition-all hover:scale-[1.02] active:scale-95"
+            className="hidden sm:flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-[#00E5FF] hover:bg-[#00E5FF]/90 text-[#080C14] font-bold text-xs shadow-md shadow-[#00E5FF]/20 transition-all hover:scale-[1.02] active:scale-95 uf-glow-sm"
           >
-            <span className="text-base font-semibold leading-none">+</span>
+            <span className="text-base font-extrabold leading-none">+</span>
             <span>Nueva Transacción</span>
           </button>
 

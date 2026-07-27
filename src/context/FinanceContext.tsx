@@ -4,6 +4,8 @@ import { DEFAULT_CATEGORIES } from '../lib/constants';
 import { generateSeedData } from '../lib/demoData';
 import { getCurrentYearMonth, getMonthlyTotals } from '../lib/utils';
 import { useAuth } from './AuthContext';
+import { supabaseService } from '../lib/supabaseService';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 export interface ToastMessage {
   id: string;
@@ -26,6 +28,7 @@ interface FinanceContextType {
   selectedMonth: number;
   selectedYear: number;
   setSelectedPeriod: (month: number, year: number) => void;
+  isLoading: boolean;
   
   // Transaction CRUD
   addTransaction: (data: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => void;
@@ -70,6 +73,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [selectedMonth, setSelectedMonth] = useState<number>(currentYM.month);
   const [selectedYear, setSelectedYear] = useState<number>(currentYM.year);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Theme
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -127,18 +131,47 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return seed.budgets;
   });
 
-  // Save changes to localStorage
+  // Load data from Supabase when user is authenticated
   useEffect(() => {
-    localStorage.setItem('finance_transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    if (user && isSupabaseConfigured) {
+      setIsLoading(true);
+      Promise.all([
+        supabaseService.getTransactions(user.id),
+        supabaseService.getCategories(user.id),
+        supabaseService.getBudgets(user.id),
+      ])
+        .then(([remoteTxs, remoteCats, remoteBudgets]) => {
+          if (remoteTxs.length > 0) setTransactions(remoteTxs);
+          if (remoteCats.length > 0) setCategories(remoteCats);
+          if (remoteBudgets.length > 0) setBudgets(remoteBudgets);
+        })
+        .catch((err) => {
+          console.error('Error al sincronizar con Supabase:', err);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [user?.id]);
+
+  // Save changes to localStorage for offline/demo mode
+  useEffect(() => {
+    if (!user) {
+      localStorage.setItem('finance_transactions', JSON.stringify(transactions));
+    }
+  }, [transactions, user]);
 
   useEffect(() => {
-    localStorage.setItem('finance_categories', JSON.stringify(categories));
-  }, [categories]);
+    if (!user) {
+      localStorage.setItem('finance_categories', JSON.stringify(categories));
+    }
+  }, [categories, user]);
 
   useEffect(() => {
-    localStorage.setItem('finance_budgets', JSON.stringify(budgets));
-  }, [budgets]);
+    if (!user) {
+      localStorage.setItem('finance_budgets', JSON.stringify(budgets));
+    }
+  }, [budgets, user]);
 
   // Filter state
   const [filter, setFilter] = useState<TransactionFilter>(INITIAL_FILTER);
@@ -167,17 +200,34 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Transaction Actions
-  const addTransaction = (data: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {
+  // Transaction Actions with Supabase Sync
+  const addTransaction = async (data: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {
+    const tempId = `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const newTransaction: Transaction = {
       ...data,
-      id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: tempId,
       user_id: user?.id || 'demo-user',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
     setTransactions((prev) => [newTransaction, ...prev]);
+
+    if (user && isSupabaseConfigured) {
+      try {
+        const savedTx = await supabaseService.createTransaction(user.id, data);
+        if (savedTx) {
+          setTransactions((prev) => prev.map((t) => (t.id === tempId ? savedTx : t)));
+        }
+      } catch (err) {
+        addToast({
+          type: 'error',
+          title: 'Error de sincronización',
+          message: 'No se pudo guardar la transacción en Supabase.',
+        });
+      }
+    }
+
     addToast({
       type: 'success',
       title: 'Transacción creada',
@@ -185,10 +235,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const updateTransaction = (id: string, data: Partial<Transaction>) => {
+  const updateTransaction = async (id: string, data: Partial<Transaction>) => {
     setTransactions((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...data, updated_at: new Date().toISOString() } : t))
     );
+
+    if (user && isSupabaseConfigured) {
+      try {
+        await supabaseService.updateTransaction(id, data);
+      } catch (err) {
+        addToast({
+          type: 'error',
+          title: 'Error al actualizar en Supabase',
+        });
+      }
+    }
+
     addToast({
       type: 'info',
       title: 'Transacción actualizada',
@@ -196,8 +258,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const deleteTransaction = (id: string) => {
+  const deleteTransaction = async (id: string) => {
     setTransactions((prev) => prev.filter((t) => t.id !== id));
+
+    if (user && isSupabaseConfigured) {
+      try {
+        await supabaseService.deleteTransaction(id);
+      } catch (err) {
+        addToast({
+          type: 'error',
+          title: 'Error al eliminar en Supabase',
+        });
+      }
+    }
+
     addToast({
       type: 'warning',
       title: 'Transacción eliminada',
@@ -342,6 +416,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         selectedMonth,
         selectedYear,
         setSelectedPeriod,
+        isLoading,
         addTransaction,
         updateTransaction,
         deleteTransaction,

@@ -7,6 +7,7 @@ import { IncomeExpenseBarChart } from './IncomeExpenseBarChart';
 import { BalanceLineChart } from './BalanceLineChart';
 import { RecentTransactions } from './RecentTransactions';
 import { BudgetOverviewWidget } from './BudgetOverviewWidget';
+import { AiAdviceWidget } from './AiAdviceWidget';
 import {
   Wallet,
   TrendingUp,
@@ -153,6 +154,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           delay={0.2}
         />
       </div>
+
+      {/* Gemini AI Advice Widget */}
+      <AiAdviceWidget />
 
       {/* Main Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

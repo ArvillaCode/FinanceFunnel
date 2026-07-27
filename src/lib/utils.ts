@@ -41,6 +41,11 @@ export function getCurrentYearMonth(): { year: number; month: number } {
   };
 }
 
+export function calculatePercentage(current: number, previous: number): number {
+  if (previous === 0) return 0;
+  return Number((((current - previous) / previous) * 100).toFixed(1));
+}
+
 // Calculate totals for a given month & year
 export function getMonthlyTotals(transactions: Transaction[], year: number, month: number) {
   const filtered = transactions.filter((t) => {
