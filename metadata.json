@@ -1,0 +1,6 @@
+{
+  "name": "Gestor de Finanzas Personales",
+  "description": "Aplicación web responsive e intuitiva para gestión de ingresos, gastos, presupuestos y análisis financiero con gráficos interactivos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
