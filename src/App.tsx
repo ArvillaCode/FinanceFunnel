@@ -23,10 +23,36 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { Transaction } from './types';
 import { Loader2, ShieldAlert } from 'lucide-react';
 
+const getInitialView = (): string => {
+  const hash = window.location.hash.replace('#', '').trim();
+  if (hash) return hash;
+  const saved = localStorage.getItem('uf_active_view');
+  return saved || 'dashboard';
+};
+
 const MainLayout: React.FC = () => {
   const { user, isDemoUser, isLoading, activeLicense, isLicenseValid, signOut } = useAuth();
-  const [activeView, setActiveView] = useState<string>('dashboard');
+  const [activeView, setActiveViewState] = useState<string>(getInitialView);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+
+  const handleNavigate = (view: string) => {
+    setActiveViewState(view);
+    localStorage.setItem('uf_active_view', view);
+    window.location.hash = `#${view}`;
+  };
+
+  React.useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '').trim();
+      if (hash) {
+        setActiveViewState(hash);
+        localStorage.setItem('uf_active_view', hash);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   // Modals state
   const [isTxModalOpen, setIsTxModalOpen] = useState<boolean>(false);
@@ -93,7 +119,7 @@ const MainLayout: React.FC = () => {
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenNewTxModal={handleOpenNewTx}
         onOpenCommandModal={() => setIsCommandModalOpen(true)}
-        onNavigate={setActiveView}
+        onNavigate={handleNavigate}
         activeView={activeView}
       />
 
@@ -101,7 +127,7 @@ const MainLayout: React.FC = () => {
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
         <Sidebar
           activeView={activeView}
-          onNavigate={setActiveView}
+          onNavigate={handleNavigate}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           onOpenNewTxModal={handleOpenNewTx}
@@ -115,7 +141,7 @@ const MainLayout: React.FC = () => {
 
           {activeView === 'dashboard' && (
             <DashboardView
-              onNavigate={setActiveView}
+              onNavigate={handleNavigate}
               onEditTransaction={handleEditTx}
               onOpenNewTxModal={handleOpenNewTx}
             />
@@ -145,7 +171,7 @@ const MainLayout: React.FC = () => {
       {/* Mobile Bottom Navigation */}
       <BottomNav
         activeView={activeView}
-        onNavigate={setActiveView}
+        onNavigate={handleNavigate}
         onOpenNewTxModal={handleOpenNewTx}
       />
 
@@ -159,7 +185,7 @@ const MainLayout: React.FC = () => {
       <QuickActionCommandModal
         isOpen={isCommandModalOpen}
         onClose={() => setIsCommandModalOpen(false)}
-        onNavigate={setActiveView}
+        onNavigate={handleNavigate}
         onOpenNewTxModal={handleOpenNewTx}
       />
 
