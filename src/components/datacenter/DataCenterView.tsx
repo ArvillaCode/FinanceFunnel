@@ -366,7 +366,7 @@ export const DataCenterView: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-[#00E5FF] font-bold text-sm">
               <Upload className="w-5 h-5" />
-              <span>Importación Masiva de Datos (CSV)</span>
+              <span>Importación Masiva de Datos en 2 Pasos (CSV)</span>
             </div>
 
             <button
@@ -374,16 +374,17 @@ export const DataCenterView: React.FC = () => {
               className="text-[11px] font-bold text-[#00E5FF] underline hover:text-[#FFFFFF] flex items-center gap-1"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Descargar Ejemplo</span>
+              <span>Plantilla Ejemplo</span>
             </button>
           </div>
 
           <p className="text-xs text-[#94A3B8] leading-relaxed">
-            Sube extractos bancarios o listas masivas de transacciones. El sistema limpia montos, fechas y descripciones automáticamente.
+            Paso 1: Arrastra tu archivo. Paso 2: Revisa las filas detectadas y presiona el botón de Carga Masiva.
           </p>
 
           <div className="space-y-3">
-            <div className="relative border-2 border-dashed border-[#00E5FF]/40 rounded-2xl p-6 text-center hover:border-[#00E5FF] transition-all bg-[#080C14] group cursor-pointer">
+            {/* Paso 1: Dropzone */}
+            <div className="relative border-2 border-dashed border-[#00E5FF]/40 rounded-2xl p-5 text-center hover:border-[#00E5FF] transition-all bg-[#080C14] group cursor-pointer">
               <input
                 type="file"
                 accept=".csv,.txt"
@@ -391,20 +392,49 @@ export const DataCenterView: React.FC = () => {
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
               />
               <Upload className="w-8 h-8 text-[#00E5FF] mx-auto mb-2 group-hover:scale-110 transition-transform" />
-              <p className="text-xs font-bold text-[#FFFFFF]">Haz clic o arrastra tu archivo CSV aquí</p>
-              <p className="text-[11px] text-[#94A3B8] mt-1">Soporta cualquier orden de columnas (Bancos, Excel, etc.)</p>
+              <p className="text-xs font-bold text-[#FFFFFF]">Paso 1: Haz clic o arrastra tu archivo CSV aquí</p>
+              <p className="text-[11px] text-[#94A3B8] mt-1">Soporta comas (,), punto y coma (;) y formato bancario</p>
             </div>
 
             <button
               onClick={downloadSampleCSV}
-              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-[#00E5FF]/10 border border-[#00E5FF] text-[#00E5FF] text-xs font-extrabold hover:bg-[#00E5FF] hover:text-[#080C14] transition-all uf-glow-sm"
+              className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[#00E5FF]/10 border border-[#00E5FF]/50 text-[#00E5FF] text-xs font-bold hover:bg-[#00E5FF] hover:text-[#080C14] transition-all uf-glow-sm"
             >
               <Download className="w-4 h-4" />
               <span>Descargar Plantilla de Ejemplo (.csv)</span>
             </button>
           </div>
 
-          {importStatus && (
+          {/* Paso 2: Banner de Archivo Listo + Botón de Carga Directa */}
+          {parsedRows.length > 0 && (
+            <div className="p-4 rounded-xl bg-[#00E5FF]/10 border border-[#00E5FF] space-y-3 uf-glow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold text-[#00E5FF]">
+                  <CheckCircle className="w-4 h-4 text-[#00E5FF]" />
+                  <span>Paso 2: ¡Se detectaron {parsedRows.length} transacciones listas!</span>
+                </div>
+
+                <button
+                  onClick={() => setIsPreviewOpen(!isPreviewOpen)}
+                  className="text-[11px] font-bold text-[#FFFFFF] underline hover:text-[#00E5FF] flex items-center gap-1"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>{isPreviewOpen ? 'Ocultar Previa' : 'Ver Tabla Previa'}</span>
+                </button>
+              </div>
+
+              <button
+                onClick={handleConfirmImport}
+                disabled={isImporting}
+                className="w-full py-3 rounded-xl bg-[#00E5FF] text-[#080C14] text-xs font-black uppercase tracking-wider uf-glow shadow-lg flex items-center justify-center gap-2 hover:bg-[#FFFFFF] transition-all"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>{isImporting ? 'Cargando Transacciones...' : `PROCESAR Y SUBIR LAS ${parsedRows.filter(r => r.selected).length} TRANSACCIONES`}</span>
+              </button>
+            </div>
+          )}
+
+          {importStatus && parsedRows.length === 0 && (
             <div className="p-3 rounded-xl bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-xs font-bold text-[#00E5FF] flex items-center gap-2">
               <CheckCircle className="w-4 h-4 shrink-0" />
               <span>{importStatus}</span>
