@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { AuthProvider } from './context/AuthContext';
-import { FinanceProvider, useFinance } from './context/FinanceContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { FinanceProvider } from './context/FinanceContext';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';
 import { BottomNav } from './components/layout/BottomNav';
@@ -11,10 +11,14 @@ import { CategoryList } from './components/categories/CategoryList';
 import { SettingsView } from './components/settings/SettingsView';
 import { TransactionFormModal } from './components/transactions/TransactionFormModal';
 import { AuthModal } from './components/auth/AuthModal';
+import { AuthScreen } from './components/auth/AuthScreen';
 import { ToastContainer } from './components/ui/Toast';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { Transaction } from './types';
+import { Loader2 } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
+  const { user, isDemoUser, isLoading } = useAuth();
   const [activeView, setActiveView] = useState<string>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
 
@@ -22,6 +26,20 @@ const MainLayout: React.FC = () => {
   const [isTxModalOpen, setIsTxModalOpen] = useState<boolean>(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#080C14] flex flex-col items-center justify-center text-[#00E5FF] gap-3">
+        <Loader2 className="w-10 h-10 animate-spin" />
+        <span className="text-xs font-bold tracking-wider uppercase text-[#94A3B8]">Cargando Upfunnel Finance...</span>
+      </div>
+    );
+  }
+
+  // Primera pantalla obligatoria: Login / Registro si no hay sesión iniciada
+  if (!user && !isDemoUser) {
+    return <AuthScreen />;
+  }
 
   const handleOpenNewTx = () => {
     setEditingTx(null);
@@ -101,8 +119,6 @@ const MainLayout: React.FC = () => {
     </div>
   );
 };
-
-import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 export default function App() {
   return (
