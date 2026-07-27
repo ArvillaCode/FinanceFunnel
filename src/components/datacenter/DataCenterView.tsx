@@ -300,19 +300,30 @@ export const DataCenterView: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="px-2.5 py-0.5 rounded-md bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/40 text-xs font-extrabold uppercase tracking-wider uf-glow-sm">
-            CENTRO DE DATOS Y CARGA MASIVA
-          </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-md bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/40 text-xs font-extrabold uppercase tracking-wider uf-glow-sm">
+              CENTRO DE DATOS Y CARGA MASIVA
+            </span>
+          </div>
+          <h2 className="text-xl font-extrabold text-[#FFFFFF] mt-1 flex items-center gap-2">
+            <FileSpreadsheet className="w-5 h-5 text-[#00E5FF]" />
+            <span>Exportación, Importación y Respaldo</span>
+          </h2>
+          <p className="text-xs text-[#94A3B8] mt-0.5">
+            Carga archivos CSV de cualquier banco u hoja de cálculo con detección automática de columnas y vista previa
+          </p>
         </div>
-        <h2 className="text-xl font-extrabold text-[#FFFFFF] mt-1 flex items-center gap-2">
-          <FileSpreadsheet className="w-5 h-5 text-[#00E5FF]" />
-          <span>Exportación, Importación y Respaldo</span>
-        </h2>
-        <p className="text-xs text-[#94A3B8] mt-0.5">
-          Carga archivos CSV de cualquier banco u hoja de cálculo con detección automática de columnas y vista previa
-        </p>
+
+        {/* Header Action Button */}
+        <button
+          onClick={downloadSampleCSV}
+          className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#00E5FF]/10 border border-[#00E5FF] text-[#00E5FF] hover:bg-[#00E5FF] hover:text-[#080C14] text-xs font-black uppercase tracking-wider transition-all uf-glow-sm shadow-md"
+        >
+          <Download className="w-4 h-4" />
+          <span>Descargar Plantilla CSV Ejemplo</span>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -353,10 +364,20 @@ export const DataCenterView: React.FC = () => {
         </div>
 
         {/* Import Card */}
-        <div className="p-6 rounded-2xl bg-[#080C14] border border-[#94A3B8]/20 shadow-sm space-y-5">
-          <div className="flex items-center gap-2 text-[#00E5FF] font-bold text-sm">
-            <Upload className="w-5 h-5" />
-            <span>Importación Masiva de Datos (CSV)</span>
+        <div className="p-6 rounded-2xl bg-[#080C14] border border-[#00E5FF]/30 shadow-md space-y-5 uf-glow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[#00E5FF] font-bold text-sm">
+              <Upload className="w-5 h-5" />
+              <span>Importación Masiva de Datos (CSV)</span>
+            </div>
+
+            <button
+              onClick={downloadSampleCSV}
+              className="text-[11px] font-bold text-[#00E5FF] underline hover:text-[#FFFFFF] flex items-center gap-1"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Descargar Ejemplo</span>
+            </button>
           </div>
 
           <p className="text-xs text-[#94A3B8] leading-relaxed">
@@ -378,9 +399,9 @@ export const DataCenterView: React.FC = () => {
 
             <button
               onClick={downloadSampleCSV}
-              className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border border-[#00E5FF]/40 text-[#00E5FF] text-xs font-bold hover:bg-[#00E5FF]/10 transition-all uf-glow-sm"
+              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-[#00E5FF]/10 border border-[#00E5FF] text-[#00E5FF] text-xs font-extrabold hover:bg-[#00E5FF] hover:text-[#080C14] transition-all uf-glow-sm"
             >
-              <Download className="w-4 h-4 text-[#00E5FF]" />
+              <Download className="w-4 h-4" />
               <span>Descargar Plantilla de Ejemplo (.csv)</span>
             </button>
           </div>
