@@ -27,7 +27,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
   onOpenNewTxModal,
 }) => {
-  const { user } = useAuth();
+  const { user, isDemoUser } = useAuth();
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'settings', label: 'Configuración', icon: Settings },
   ];
 
-  if (user?.role === 'superadmin') {
+  if (user?.role === 'superadmin' && !isDemoUser) {
     navItems.unshift({ id: 'superadmin', label: 'Panel SuperAdmin', icon: KeyRound });
   }
 

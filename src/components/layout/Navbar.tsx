@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useFinance } from '../../context/FinanceContext';
-import { CURRENCIES } from '../../lib/constants';
-import { CurrencyCode } from '../../types';
 import {
   Wallet,
   User,
   ChevronDown,
   LogOut,
   Calendar,
-  ShieldCheck,
   KeyRound,
 } from 'lucide-react';
 import { format, subMonths, addMonths } from 'date-fns';
@@ -26,12 +23,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuthModal,
   onOpenNewTxModal,
   onNavigate,
-  activeView,
 }) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isDemoUser } = useAuth();
   const {
-    currency,
-    setCurrency,
     selectedMonth,
     selectedYear,
     setSelectedPeriod,
@@ -65,6 +59,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     const next = addMonths(currentDate, 1);
     setSelectedPeriod(next.getMonth() + 1, next.getFullYear());
   };
+
+  const isRealSuperAdmin = user?.role === 'superadmin' && !isDemoUser;
 
   return (
     <header className="sticky top-0 z-40 bg-[#080C14] border-b border-[#94A3B8]/20 transition-colors w-full">
@@ -109,44 +105,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </div>
 
-        {/* Right Controls */}
+        {/* Right Controls (Only New Tx + Avatar) */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* SuperAdmin Access Button */}
-          {user?.role === 'superadmin' && (
-            <button
-              onClick={() => onNavigate('superadmin')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-extrabold uppercase transition-all ${
-                activeView === 'superadmin'
-                  ? 'bg-[#00E5FF] text-[#080C14] border-[#00E5FF] uf-glow-sm'
-                  : 'bg-[#00E5FF]/10 border-[#00E5FF]/40 text-[#00E5FF] hover:bg-[#00E5FF]/20'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span className="hidden md:inline">PANEL SUPERADMIN</span>
-            </button>
-          )}
-
-          {/* New Tx Button Desktop */}
+          {/* New Tx Button */}
           <button
             onClick={onOpenNewTxModal}
-            className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#00E5FF] hover:bg-[#00E5FF]/90 text-[#080C14] font-bold text-xs shadow-md transition-all hover:scale-[1.02] active:scale-95 uf-glow-sm"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#00E5FF] hover:bg-[#00E5FF]/90 text-[#080C14] font-bold text-xs shadow-md transition-all hover:scale-[1.02] active:scale-95 uf-glow-sm"
           >
             <span className="text-base font-extrabold leading-none">+</span>
-            <span>Nueva Transacción</span>
+            <span className="hidden sm:inline">Nueva Transacción</span>
           </button>
-
-          {/* Currency Switcher */}
-          <select
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
-            className="text-xs font-bold bg-[#080C14] text-[#FFFFFF] border border-[#94A3B8]/30 rounded-xl px-2 py-1.5 focus:outline-none focus:border-[#00E5FF] cursor-pointer"
-          >
-            {Object.values(CURRENCIES).map((c) => (
-              <option key={c.code} value={c.code} className="bg-[#080C14] text-[#FFFFFF]">
-                {c.code} ({c.symbol})
-              </option>
-            ))}
-          </select>
 
           {/* User Profile / Avatar Button */}
           <div className="relative" ref={dropdownRef}>
@@ -178,9 +146,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Clean, High Z-Index Profile Dropdown */}
+            {/* Profile Dropdown */}
             {isProfileOpen && user && (
-              <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#080C14] border border-[#00E5FF]/50 shadow-2xl p-2.5 z-50 uf-glow">
+              <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-[#080C14] border border-[#00E5FF]/50 shadow-2xl p-2.5 z-50 uf-glow">
                 <div className="px-3 py-2.5 border-b border-[#94A3B8]/20 mb-1 flex items-center gap-3 bg-[#080C14] rounded-xl">
                   {user.avatar_url ? (
                     <img
@@ -202,15 +170,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </p>
                     <div className="mt-1">
                       <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ${
-                        user.role === 'superadmin' ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40' : 'bg-[#94A3B8]/10 text-[#94A3B8]'
+                        isRealSuperAdmin ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40' : 'bg-[#94A3B8]/10 text-[#94A3B8]'
                       }`}>
-                        {user.role === 'superadmin' ? 'SUPERADMIN' : 'USUARIO'}
+                        {isRealSuperAdmin ? 'SUPERADMIN' : isDemoUser ? 'MODO DEMO' : 'USUARIO'}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {user.role === 'superadmin' && (
+                {isRealSuperAdmin && (
                   <button
                     onClick={() => {
                       setIsProfileOpen(false);
@@ -231,7 +199,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-bold text-[#FFFFFF] hover:bg-[#00E5FF]/10 hover:text-[#00E5FF] rounded-xl transition-colors"
                 >
                   <User className="w-4 h-4 text-[#00E5FF]" />
-                  <span>Perfil, Avatar y Configuración</span>
+                  <span>Perfil y Avatar</span>
                 </button>
 
                 <div className="border-t border-[#94A3B8]/15 my-1" />
