@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, isSuperAdminEmail } from '../../context/AuthContext';
+import { useFinance } from '../../context/FinanceContext';
 import { supabaseService } from '../../lib/supabaseService';
 import { License, Profile, LicenseDuration, LicenseStatus, AuditLog } from '../../types';
 import { getDurationLabel, getStatusBadgeLabel } from '../../lib/licenseUtils';
@@ -27,6 +28,7 @@ import {
 
 export const SuperAdminView: React.FC = () => {
   const { user } = useAuth();
+  const { addToast } = useFinance();
   const [activeTab, setActiveTab] = useState<'licenses' | 'users' | 'audit'>('licenses');
 
   // Data states
@@ -126,7 +128,6 @@ export const SuperAdminView: React.FC = () => {
   const handleToggleRole = async (targetUser: Profile) => {
     if (!user) return;
 
-    // Protection rule for Root SuperAdmin
     if (isSuperAdminEmail(targetUser.email)) {
       alert('🔒 El usuario Root SuperAdmin (gabriel.au2023@gmail.com) está protegido por la arquitectura del sistema y su rol no puede ser modificado.');
       return;
@@ -152,7 +153,6 @@ export const SuperAdminView: React.FC = () => {
   const handleToggleBan = async (targetUser: Profile) => {
     if (!user) return;
 
-    // Protection rule for Root SuperAdmin
     if (isSuperAdminEmail(targetUser.email)) {
       alert('🔒 El usuario Root SuperAdmin (gabriel.au2023@gmail.com) está protegido y no puede ser baneado del sistema.');
       return;
@@ -178,6 +178,11 @@ export const SuperAdminView: React.FC = () => {
   const copyToClipboard = (key: string) => {
     navigator.clipboard.writeText(key);
     setCopiedKey(key);
+    addToast({
+      type: 'success',
+      title: 'Clave Copiada al Portapapeles',
+      message: `Licencia ${key} lista para compartir con el usuario.`,
+    });
     setTimeout(() => setCopiedKey(null), 2500);
   };
 
@@ -377,12 +382,12 @@ export const SuperAdminView: React.FC = () => {
                             <button
                               onClick={() => copyToClipboard(lic.key_code)}
                               className="p-1 rounded text-[#94A3B8] hover:text-[#FFFFFF]"
-                              title="Copiar Clave"
+                              title="Copiar Clave al Portapapeles"
                             >
                               {copiedKey === lic.key_code ? (
                                 <Check className="w-3.5 h-3.5 text-[#00E5FF]" />
                               ) : (
-                                <Copy className="w-3.5 h-3.5" />
+                                <Copy className="w-3.5 h-3.5 text-[#00E5FF]" />
                               )}
                             </button>
                           </td>
@@ -643,9 +648,9 @@ export const SuperAdminView: React.FC = () => {
               <button
                 onClick={() => copyToClipboard(createdLicense.key_code)}
                 className="p-1.5 rounded bg-[#00E5FF]/20 text-[#00E5FF] hover:bg-[#00E5FF]/30 transition-colors"
-                title="Copiar Clave"
+                title="Copiar Clave al Portapapeles"
               >
-                <Copy className="w-4 h-4" />
+                <Copy className="w-4 h-4 text-[#00E5FF]" />
               </button>
             </div>
 

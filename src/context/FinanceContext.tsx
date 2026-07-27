@@ -5,6 +5,7 @@ import { getCurrentYearMonth } from '../lib/utils';
 import { useAuth } from './AuthContext';
 import { supabaseService } from '../lib/supabaseService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { tenantService } from '../lib/tenantService';
 
 export interface ToastMessage {
   id: string;
@@ -28,6 +29,10 @@ interface FinanceContextType {
   selectedYear: number;
   setSelectedPeriod: (month: number, year: number) => void;
   isLoading: boolean;
+  
+  // Multi-Tenant Workspace
+  currentOrgId: string;
+  setCurrentOrgId: (orgId: string) => void;
   
   // Transaction CRUD
   addTransaction: (data: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => void;
@@ -73,6 +78,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [selectedMonth, setSelectedMonth] = useState<number>(currentYM.month);
   const [selectedYear, setSelectedYear] = useState<number>(currentYM.year);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Multi-Tenant Org State
+  const [currentOrgId, setCurrentOrgIdState] = useState<string>(() => {
+    return tenantService.getCurrentOrgId();
+  });
+
+  const setCurrentOrgId = (orgId: string) => {
+    setCurrentOrgIdState(orgId);
+    tenantService.setCurrentOrgId(orgId);
+  };
 
   // Theme (Dark / Light)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -150,10 +165,28 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  // Load user data & Subscribe to Realtime Updates for instant Mobile <-> PC synchronization!
+  // Load user data & Subscribe to Realtime Updates + Mobile Focus Reconnect!
   useEffect(() => {
     if (user && isSupabaseConfigured) {
       loadRemoteData(user.id);
+
+      // Re-sync on window focus (vital for Mobile browser tab switching & screen unlocks!)
+      const handleFocus = () => {
+        supabaseService.getTransactions(user.id).then((txs) => setTransactions(txs || []));
+      };
+      window.addEventListener('focus', handleFocus);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') handleFocus();
+      });
+
+      // Regular polling fallback every 5 seconds for instant cross-device sync
+      const pollInterval = setInterval(() => {
+        supabaseService.getTransactions(user.id).then((txs) => {
+          if (txs && txs.length !== transactions.length) {
+            setTransactions(txs);
+          }
+        });
+      }, 5000);
 
       if (supabase) {
         const channel = supabase
@@ -184,33 +217,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           .subscribe();
 
         return () => {
+          window.removeEventListener('focus', handleFocus);
+          clearInterval(pollInterval);
           supabase.removeChannel(channel);
         };
       }
+
+      return () => {
+        window.removeEventListener('focus', handleFocus);
+        clearInterval(pollInterval);
+      };
     } else if (!user) {
       setTransactions([]);
       setBudgets([]);
     }
   }, [user?.id]);
-
-  // Persist to local storage for guest/offline
-  useEffect(() => {
-    if (!user) {
-      localStorage.setItem('finance_transactions', JSON.stringify(transactions));
-    }
-  }, [transactions, user]);
-
-  useEffect(() => {
-    if (!user) {
-      localStorage.setItem('finance_categories', JSON.stringify(categories));
-    }
-  }, [categories, user]);
-
-  useEffect(() => {
-    if (!user) {
-      localStorage.setItem('finance_budgets', JSON.stringify(budgets));
-    }
-  }, [budgets, user]);
 
   // Filter state
   const [filter, setFilter] = useState<TransactionFilter>(INITIAL_FILTER);
@@ -241,14 +262,19 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Transaction CRUD
   const addTransaction = async (data: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {
+    const txWithOrg = {
+      ...data,
+      organization_id: currentOrgId,
+    };
+
     if (user && isSupabaseConfigured) {
-      const created = await supabaseService.createTransaction(user.id, data);
+      const created = await supabaseService.createTransaction(user.id, txWithOrg);
       if (created) {
         setTransactions((prev) => [created, ...prev.filter((t) => t.id !== created.id)]);
       }
     } else {
       const newTx: Transaction = {
-        ...data,
+        ...txWithOrg,
         id: `tx-${Date.now()}`,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -259,7 +285,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addToast({
       type: 'success',
       title: 'Transacción creada',
-      message: `${data.type === 'income' ? 'Ingreso' : 'Gasto'} registrado correctamente.`,
+      message: `${data.type === 'income' ? 'Ingreso' : 'Gasto'} registrado en el espacio activo.`,
     });
   };
 
@@ -346,6 +372,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } else {
       const newBudget: Budget = {
         id: `b-${Date.now()}`,
+        organization_id: currentOrgId,
         category_id: categoryId,
         amount,
         month: selectedMonth,
@@ -384,9 +411,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  // Filtered transactions computation
+  // Filtered transactions computation WITH WORKSPACE TENANT ISOLATION!
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
+      // 1. Strict Tenant Isolation (Filter by active workspace)
+      if (t.organization_id && t.organization_id !== currentOrgId) {
+        return false;
+      }
+
       if (filter.search) {
         const query = filter.search.toLowerCase();
         const descMatch = t.description.toLowerCase().includes(query);
@@ -430,7 +462,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return b.transaction_date.localeCompare(a.transaction_date);
       }
     });
-  }, [transactions, filter]);
+  }, [transactions, filter, currentOrgId]);
 
   return (
     <FinanceContext.Provider
@@ -449,6 +481,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         selectedYear,
         setSelectedPeriod,
         isLoading,
+        currentOrgId,
+        setCurrentOrgId,
         addTransaction,
         updateTransaction,
         deleteTransaction,
