@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { PlanTier } from '../../types';
-import { CreditCard, Check, Sparkles, Zap, ShieldCheck, ArrowRight } from 'lucide-react';
+import { CreditCard, Check, Sparkles, Zap, ArrowRight, Star } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 
 export const BillingView: React.FC = () => {
@@ -68,7 +68,7 @@ export const BillingView: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-8 py-4">
       {/* Header */}
       <div>
         <div className="flex items-center gap-2">
@@ -92,22 +92,23 @@ export const BillingView: React.FC = () => {
         </div>
       )}
 
-      {/* Plan Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Floating Plan Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 pb-6 items-stretch">
         {PLANS.map((plan) => {
           const isCurrent = currentPlan === plan.id;
           return (
             <div
               key={plan.id}
-              className={`p-6 rounded-2xl bg-[#080C14] border transition-all flex flex-col justify-between space-y-6 ${
+              className={`p-6 rounded-3xl bg-[#080C14] border backdrop-blur-md uf-hover-float flex flex-col justify-between space-y-6 ${
                 plan.highlight
-                  ? 'border-[#00E5FF] uf-glow shadow-2xl relative'
-                  : 'border-[#94A3B8]/20 hover:border-[#00E5FF]/40'
+                  ? 'border-[#00E5FF] animate-float-pro uf-glow shadow-2xl relative z-10'
+                  : 'border-[#94A3B8]/25 animate-float-subtle hover:border-[#00E5FF]/60'
               }`}
             >
               {plan.highlight && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#00E5FF] text-[#080C14] text-[10px] font-black uppercase tracking-wider shadow-md">
-                  RECOMENDADO
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-[#00E5FF] text-[#080C14] text-[10px] font-black uppercase tracking-wider shadow-lg uf-glow-sm flex items-center gap-1">
+                  <Star className="w-3 h-3 fill-[#080C14]" />
+                  <span>MÁS POPULAR</span>
                 </div>
               )}
 
@@ -115,14 +116,14 @@ export const BillingView: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-extrabold text-[#FFFFFF]">{plan.name}</h3>
                   {isCurrent && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40 uf-glow-sm">
                       ACTIVO
                     </span>
                   )}
                 </div>
 
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-[#00E5FF]">{plan.price}</span>
+                  <span className="text-4xl font-black text-[#00E5FF]">{plan.price}</span>
                   <span className="text-xs text-[#94A3B8] font-mono">{plan.period}</span>
                 </div>
 
@@ -130,7 +131,7 @@ export const BillingView: React.FC = () => {
 
                 <div className="border-t border-[#94A3B8]/15 pt-4 space-y-2.5">
                   {plan.features.map((feat, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs font-semibold text-[#FFFFFF]">
+                    <div key={idx} className="flex items-center gap-2.5 text-xs font-semibold text-[#FFFFFF]">
                       <Check className="w-4 h-4 text-[#00E5FF] shrink-0" />
                       <span>{feat}</span>
                     </div>
@@ -141,11 +142,11 @@ export const BillingView: React.FC = () => {
               <button
                 onClick={() => setSelectedPlanModal(plan.id)}
                 disabled={isCurrent}
-                className={`w-full py-2.5 rounded-xl text-xs font-bold uppercase transition-all flex items-center justify-center gap-2 ${
+                className={`w-full py-3 rounded-2xl text-xs font-bold uppercase transition-all flex items-center justify-center gap-2 ${
                   isCurrent
                     ? 'bg-[#94A3B8]/10 text-[#94A3B8] border border-[#94A3B8]/20 cursor-default'
                     : plan.highlight
-                    ? 'bg-[#00E5FF] text-[#080C14] hover:bg-[#00E5FF]/90 uf-glow-sm'
+                    ? 'bg-[#00E5FF] text-[#080C14] hover:bg-[#00E5FF]/90 uf-glow-sm shadow-md'
                     : 'bg-[#080C14] border border-[#00E5FF]/40 text-[#00E5FF] hover:bg-[#00E5FF]/10'
                 }`}
               >
