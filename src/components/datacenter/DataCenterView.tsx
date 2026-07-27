@@ -15,7 +15,7 @@ interface ParsedRow {
 }
 
 export const DataCenterView: React.FC = () => {
-  const { transactions, categories, addTransaction, addToast } = useFinance();
+  const { transactions, categories, addBulkTransactions, addToast } = useFinance();
 
   const [importStatus, setImportStatus] = useState('');
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
@@ -72,8 +72,8 @@ export const DataCenterView: React.FC = () => {
     addToast({ type: 'success', title: 'Copia de Seguridad', message: 'Se ha descargado el respaldo JSON.' });
   };
 
-  // Quote-aware CSV line parser
-  const parseCSVLine = (text: string): string[] => {
+  // Quote-aware CSV line parser supporting custom delimiters (, or ;)
+  const parseCSVLine = (text: string, delimiter: string = ','): string[] => {
     const result: string[] = [];
     let cur = '';
     let inQuotes = false;
@@ -81,7 +81,7 @@ export const DataCenterView: React.FC = () => {
       const c = text[i];
       if (c === '"') {
         inQuotes = !inQuotes;
-      } else if ((c === ',' || c === ';') && !inQuotes) {
+      } else if (c === delimiter && !inQuotes) {
         result.push(cur.trim());
         cur = '';
       } else {
@@ -116,18 +116,20 @@ export const DataCenterView: React.FC = () => {
     return new Date().toISOString().slice(0, 10);
   };
 
-  // Smart Amount Cleaner ($1,500.50 -> 1500.50)
+  // Smart Amount Cleaner ($1.500.000,00 vs $1,500,000.00)
   const parseAmount = (raw: string): number => {
     if (!raw) return 0;
     let clean = raw.replace(/[^0-9\,\.\-]/g, '');
     if (!clean) return 0;
 
-    // Handle European 1.500,50 vs 1,500.50
-    if (clean.includes(',') && clean.includes('.')) {
-      if (clean.indexOf(',') < clean.indexOf('.')) {
-        clean = clean.replace(/,/g, '');
-      } else {
+    // Handle European/Spanish 1.500.000,00 vs 1,500,000.00
+    if (clean.includes('.') && clean.includes(',')) {
+      if (clean.lastIndexOf('.') < clean.lastIndexOf(',')) {
+        // Spanish style: 1.500.000,00 -> remove dots, replace comma with dot
         clean = clean.replace(/\./g, '').replace(',', '.');
+      } else {
+        // US style: 1,500,000.00 -> remove commas
+        clean = clean.replace(/,/g, '');
       }
     } else if (clean.includes(',')) {
       clean = clean.replace(',', '.');
@@ -153,12 +155,18 @@ export const DataCenterView: React.FC = () => {
         return;
       }
 
+      // Auto-detect delimiter (; or ,)
+      const firstLine = lines[0];
+      const delimiter = firstLine.includes(';') ? ';' : ',';
+
       // 1. Detect Headers
-      const rawHeader = parseCSVLine(lines[0]);
+      const rawHeader = parseCSVLine(lines[0], delimiter);
       const lowerHeader = rawHeader.map((h) => h.toLowerCase());
 
       let dateIdx = lowerHeader.findIndex((h) => h.includes('fecha') || h.includes('date') || h.includes('day'));
-      let descIdx = lowerHeader.findIndex((h) => h.includes('desc') || h.includes('concepto') || h.includes('detalle') || h.includes('nota') || h.includes('name'));
+      let descIdx = lowerHeader.findIndex((h) => h.includes('desc') || h.includes('concepto') || h.includes('detalle') || h.includes('name'));
+      if (descIdx === -1) descIdx = lowerHeader.findIndex((h) => h.includes('nota'));
+
       let amtIdx = lowerHeader.findIndex((h) => h.includes('monto') || h.includes('amount') || h.includes('valor') || h.includes('importe') || h.includes('total'));
       let typeIdx = lowerHeader.findIndex((h) => h.includes('tipo') || h.includes('type') || h.includes('clase'));
       let catIdx = lowerHeader.findIndex((h) => h.includes('cat') || h.includes('rubro'));
@@ -174,7 +182,7 @@ export const DataCenterView: React.FC = () => {
       const rows: ParsedRow[] = [];
 
       for (let i = startIndex; i < lines.length; i++) {
-        const cols = parseCSVLine(lines[i]);
+        const cols = parseCSVLine(lines[i], delimiter);
         if (cols.length < 2) continue;
 
         const rawDate = cols[dateIdx] || '';
@@ -221,13 +229,13 @@ export const DataCenterView: React.FC = () => {
 
       setParsedRows(rows);
       setIsPreviewOpen(true);
-      setImportStatus(`Se encontraron ${rows.length} transacciones listas para revisar e importar.`);
+      setImportStatus(`¡Se detectaron ${rows.length} transacciones listas para importar!`);
     };
 
     reader.readAsText(file);
   };
 
-  // Confirm Import Batch
+  // Confirm Import Batch (Ultra fast single-batch insert!)
   const handleConfirmImport = async () => {
     const selectedRows = parsedRows.filter((r) => r.selected);
     if (selectedRows.length === 0) {
@@ -236,19 +244,22 @@ export const DataCenterView: React.FC = () => {
     }
 
     setIsImporting(true);
-    let count = 0;
+    const dataList = selectedRows.map((row) => ({
+      transaction_date: row.date,
+      type: row.type,
+      amount: row.amount,
+      description: row.description,
+      category_id: row.category_id,
+      notes: 'Importación Masiva CSV',
+    }));
 
-    for (const row of selectedRows) {
-      addTransaction({
-        transaction_date: row.date,
-        type: row.type,
-        amount: row.amount,
-        description: row.description,
-        category_id: row.category_id,
-        notes: 'Importación Masiva CSV',
-      });
-      count++;
-    }
+    const count = await addBulkTransactions(dataList);
+
+    setIsImporting(false);
+    setIsPreviewOpen(false);
+    setParsedRows([]);
+    setImportStatus(`¡${count} transacciones importadas con éxito instantáneamente!`);
+  };
 
     setIsImporting(false);
     setIsPreviewOpen(false);

@@ -44,6 +44,33 @@ export const supabaseService = {
     return data as Transaction;
   },
 
+  async createBulkTransactions(
+    userId: string,
+    txs: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[]
+  ): Promise<Transaction[]> {
+    if (!supabase) return [];
+    const payload = txs.map((tx) => ({
+      user_id: userId,
+      type: tx.type,
+      amount: tx.amount,
+      description: tx.description,
+      category_id: tx.category_id,
+      transaction_date: tx.transaction_date,
+      notes: tx.notes || null,
+    }));
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert(payload)
+      .select();
+
+    if (error) {
+      console.error('Error al crear transacciones masivas en Supabase:', error.message);
+      throw error;
+    }
+    return (data as Transaction[]) || [];
+  },
+
   async updateTransaction(id: string, tx: Partial<Transaction>): Promise<Transaction | null> {
     if (!supabase) return null;
     const { data, error } = await supabase

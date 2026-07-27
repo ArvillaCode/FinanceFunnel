@@ -36,6 +36,7 @@ interface FinanceContextType {
   
   // Transaction CRUD
   addTransaction: (data: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => void;
+  addBulkTransactions: (dataList: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[]) => Promise<number>;
   updateTransaction: (id: string, data: Partial<Transaction>) => void;
   deleteTransaction: (id: string) => void;
   
@@ -289,6 +290,51 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
+  const addBulkTransactions = async (
+    dataList: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[]
+  ): Promise<number> => {
+    if (dataList.length === 0) return 0;
+
+    const formattedList = dataList.map((data) => ({
+      ...data,
+      organization_id: currentOrgId,
+    }));
+
+    if (user && isSupabaseConfigured) {
+      try {
+        const createdTxs = await supabaseService.createBulkTransactions(user.id, formattedList);
+        if (createdTxs && createdTxs.length > 0) {
+          setTransactions((prev) => [...createdTxs, ...prev]);
+        }
+      } catch (err) {
+        console.error('Falló inserción masiva en Supabase, guardando localmente:', err);
+        const newLocalTxs: Transaction[] = formattedList.map((tx, idx) => ({
+          ...tx,
+          id: `tx-${Date.now()}-${idx}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }));
+        setTransactions((prev) => [...newLocalTxs, ...prev]);
+      }
+    } else {
+      const newLocalTxs: Transaction[] = formattedList.map((tx, idx) => ({
+        ...tx,
+        id: `tx-${Date.now()}-${idx}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }));
+      setTransactions((prev) => [...newLocalTxs, ...prev]);
+    }
+
+    addToast({
+      type: 'success',
+      title: 'Importación masiva completada',
+      message: `Se agregaron ${dataList.length} transacciones a tu espacio de trabajo.`,
+    });
+
+    return dataList.length;
+  };
+
   const updateTransaction = async (id: string, data: Partial<Transaction>) => {
     setTransactions((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...data, updated_at: new Date().toISOString() } : t))
@@ -484,6 +530,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         currentOrgId,
         setCurrentOrgId,
         addTransaction,
+        addBulkTransactions,
         updateTransaction,
         deleteTransaction,
         addCategory,
