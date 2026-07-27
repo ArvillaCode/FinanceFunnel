@@ -11,6 +11,7 @@ import {
   Calendar,
   ShieldCheck,
   KeyRound,
+  Sparkles,
 } from 'lucide-react';
 import { format, subMonths, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -101,14 +102,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           {user?.role === 'superadmin' && (
             <button
               onClick={() => onNavigate('superadmin')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-extrabold uppercase transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-extrabold uppercase transition-all ${
                 activeView === 'superadmin'
                   ? 'bg-[#00E5FF] text-[#080C14] border-[#00E5FF] uf-glow-sm'
                   : 'bg-[#00E5FF]/10 border-[#00E5FF]/40 text-[#00E5FF] hover:bg-[#00E5FF]/20'
               }`}
             >
               <ShieldCheck className="w-4 h-4" />
-              <span className="hidden md:inline">Panel SuperAdmin</span>
+              <span className="hidden md:inline">PANEL SUPERADMIN</span>
             </button>
           )}
 
@@ -134,12 +135,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             ))}
           </select>
 
-          {/* User Profile / Auth */}
+          {/* User Profile / Avatar Button */}
           <div className="relative">
             {user ? (
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex items-center gap-1.5 p-1 rounded-xl hover:bg-[#94A3B8]/10 transition-colors border border-[#94A3B8]/20"
+                title="Menú de Usuario"
               >
                 {user.avatar_url ? (
                   <img
@@ -163,16 +165,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Profile Dropdown */}
+            {/* Clean & Useful Profile Dropdown */}
             {isProfileOpen && user && (
-              <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-[#080C14] border border-[#00E5FF]/30 shadow-2xl p-2 z-50 uf-glow">
-                <div className="px-3 py-2 border-b border-[#94A3B8]/15 mb-1 flex items-center gap-3">
-                  {user.avatar_url && (
+              <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#080C14] border border-[#00E5FF]/30 shadow-2xl p-2 z-50 uf-glow">
+                <div className="px-3 py-2 border-b border-[#94A3B8]/15 mb-1 flex items-center gap-2.5">
+                  {user.avatar_url ? (
                     <img
                       src={user.avatar_url}
                       alt={user.full_name}
-                      className="w-10 h-10 rounded-xl object-cover border border-[#00E5FF] uf-glow-sm"
+                      className="w-9 h-9 rounded-xl object-cover border border-[#00E5FF]"
                     />
+                  ) : (
+                    <div className="w-9 h-9 rounded-xl bg-[#00E5FF]/10 text-[#00E5FF] font-bold text-xs flex items-center justify-center border border-[#00E5FF]/40">
+                      {user.full_name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
                   )}
                   <div className="overflow-hidden">
                     <p className="text-xs font-bold text-[#FFFFFF] truncate">
@@ -181,36 +187,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <p className="text-[11px] text-[#94A3B8] truncate">
                       {user.email}
                     </p>
-                    <span className={`mt-1 inline-block px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ${
-                      user.role === 'superadmin' ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40' : 'bg-[#94A3B8]/10 text-[#94A3B8]'
-                    }`}>
-                      {user.role === 'superadmin' ? 'SUPERADMIN' : 'USUARIO'}
-                    </span>
                   </div>
                 </div>
-
-                {user.role === 'superadmin' && (
-                  <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      onNavigate('superadmin');
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-[#00E5FF] hover:bg-[#00E5FF]/10 rounded-xl transition-colors"
-                  >
-                    <KeyRound className="w-4 h-4 text-[#00E5FF]" />
-                    <span>Panel de Licencias (SuperAdmin)</span>
-                  </button>
-                )}
 
                 <button
                   onClick={() => {
                     setIsProfileOpen(false);
                     onNavigate('settings');
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#94A3B8]/10 rounded-xl transition-colors"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[#FFFFFF] hover:bg-[#00E5FF]/10 hover:text-[#00E5FF] rounded-xl transition-colors"
                 >
-                  <User className="w-4 h-4 text-[#94A3B8]" />
-                  <span>Perfil y Avatar</span>
+                  <User className="w-4 h-4 text-[#00E5FF]" />
+                  <span>Perfil, Avatar y Configuración</span>
                 </button>
 
                 <div className="border-t border-[#94A3B8]/15 my-1" />
@@ -220,9 +208,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     setIsProfileOpen(false);
                     signOut();
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:bg-rose-950/40 rounded-xl transition-colors"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-400 hover:bg-rose-950/40 rounded-xl transition-colors"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-4 h-4 text-rose-400" />
                   <span>Cerrar Sesión</span>
                 </button>
               </div>

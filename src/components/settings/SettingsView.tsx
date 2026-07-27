@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useFinance } from '../../context/FinanceContext';
 import { CURRENCIES } from '../../lib/constants';
 import { CurrencyCode } from '../../types';
+import { geminiService } from '../../lib/geminiService';
 import {
   User,
   CheckCircle,
@@ -12,7 +13,9 @@ import {
   Camera,
   Sparkles,
   ShieldCheck,
-  Image as ImageIcon,
+  Bot,
+  Key,
+  ExternalLink,
 } from 'lucide-react';
 
 const PRESET_AVATARS = [
@@ -33,6 +36,13 @@ export const SettingsView: React.FC = () => {
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || PRESET_AVATARS[0]);
   const [customUrlInput, setCustomUrlInput] = useState('');
+  
+  // Gemini AI Key state
+  const [geminiKeyInput, setGeminiKeyInput] = useState(
+    typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') || '' : ''
+  );
+  const [hasGeminiKey, setHasGeminiKey] = useState<boolean>(geminiService.hasApiKey());
+
   const [savedMsg, setSavedMsg] = useState('');
 
   const handleUpdateProfile = (e: React.FormEvent) => {
@@ -56,14 +66,22 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const handleSaveGeminiKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    geminiService.setApiKey(geminiKeyInput.trim());
+    setHasGeminiKey(geminiService.hasApiKey());
+    setSavedMsg('Clave de la IA Gemini guardada correctamente.');
+    setTimeout(() => setSavedMsg(''), 3500);
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
         <h2 className="text-xl font-bold text-[#FFFFFF]">
-          Perfil y Preferencias del Sistema
+          Perfil, Avatar y Configuración del Sistema
         </h2>
         <p className="text-xs text-[#94A3B8] mt-0.5">
-          Personaliza tu avatar, nombre de usuario, tema visual y moneda predeterminada
+          Personaliza tu avatar, nombre de usuario, clave de Inteligencia Artificial Gemini y moneda
         </p>
       </div>
 
@@ -174,14 +192,76 @@ export const SettingsView: React.FC = () => {
           </form>
         </div>
 
-        {/* Currency & Visual Preferences */}
-        <div className="p-6 rounded-2xl bg-[#080C14] border border-[#94A3B8]/20 shadow-sm space-y-6">
-          <div className="flex items-center gap-2 text-[#00E5FF] font-bold text-sm">
-            <CreditCard className="w-4 h-4" />
-            <span>Preferencias Visuales y Moneda</span>
+        {/* AI & Currency Preferences */}
+        <div className="space-y-6">
+          {/* AI Gemini Configuration Card */}
+          <div className="p-6 rounded-2xl bg-[#080C14] border border-[#00E5FF]/40 shadow-sm space-y-4 uf-glow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-[#00E5FF] font-bold text-sm">
+                <Bot className="w-5 h-5 text-[#00E5FF]" />
+                <span>Configuración de la IA (Google Gemini)</span>
+              </div>
+
+              <span
+                className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase ${
+                  hasGeminiKey
+                    ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40 uf-glow-sm'
+                    : 'bg-[#94A3B8]/10 text-[#94A3B8] border border-[#94A3B8]/30'
+                }`}
+              >
+                {hasGeminiKey ? '✨ IA Activa' : 'Rechazada / Inactiva'}
+              </span>
+            </div>
+
+            <p className="text-xs text-[#94A3B8] leading-relaxed">
+              El Asesor Financiero IA y el Asistente de Transacciones por voz/texto utilizan el modelo **Google Gemini 2.5 Flash**.
+            </p>
+
+            <form onSubmit={handleSaveGeminiKey} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-[#94A3B8] mb-1">
+                  API Key de Google Gemini
+                </label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
+                  <input
+                    type="password"
+                    placeholder="AIzaSy..."
+                    value={geminiKeyInput}
+                    onChange={(e) => setGeminiKeyInput(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-[#080C14] border border-[#94A3B8]/30 rounded-xl text-xs font-mono text-[#FFFFFF] focus:border-[#00E5FF]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11px] font-bold text-[#00E5FF] hover:underline flex items-center gap-1"
+                >
+                  <span>Obtener clave gratis en Google AI Studio</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-[#00E5FF] text-[#080C14] text-xs font-bold hover:bg-[#00E5FF]/90 transition-colors uf-glow-sm uppercase"
+                >
+                  Guardar Clave IA
+                </button>
+              </div>
+            </form>
           </div>
 
-          <div className="space-y-4">
+          {/* Currency & Visual Preferences */}
+          <div className="p-6 rounded-2xl bg-[#080C14] border border-[#94A3B8]/20 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-[#00E5FF] font-bold text-sm">
+              <CreditCard className="w-4 h-4" />
+              <span>Preferencias Visuales y Moneda</span>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-[#94A3B8] mb-1.5">
                 Moneda Principal
@@ -199,7 +279,7 @@ export const SettingsView: React.FC = () => {
               </select>
             </div>
 
-            <div className="pt-2 p-4 rounded-xl bg-[#080C14] border border-[#94A3B8]/20 flex items-center justify-between">
+            <div className="p-4 rounded-xl bg-[#080C14] border border-[#94A3B8]/20 flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-[#FFFFFF]">
                   Tema de la Interfaz
@@ -216,24 +296,14 @@ export const SettingsView: React.FC = () => {
               >
                 {theme === 'dark' ? (
                   <>
-                    <Sun className="w-4 h-4 text-[#00E5FF]" /> Cambiar a Modo Claro
+                    <Sun className="w-4 h-4 text-[#00E5FF]" /> Modo Claro
                   </>
                 ) : (
                   <>
-                    <Moon className="w-4 h-4 text-[#00E5FF]" /> Cambiar a Modo Oscuro
+                    <Moon className="w-4 h-4 text-[#00E5FF]" /> Modo Oscuro
                   </>
                 )}
               </button>
-            </div>
-
-            <div className="p-4 rounded-xl bg-[#00E5FF]/5 border border-[#00E5FF]/20 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-[#00E5FF]">
-                <ShieldCheck className="w-4 h-4" />
-                <span>Sincronización en Tiempo Real Activa</span>
-              </div>
-              <p className="text-[11px] text-[#94A3B8] leading-relaxed">
-                Tus transacciones, presupuestos y categorías se sincronizan en tiempo real en todos tus dispositivos (Teléfono Móvil, Tablet y PC) a través de la nube de Supabase.
-              </p>
             </div>
           </div>
         </div>
