@@ -1,12 +1,26 @@
 import React, { useState } from 'react';
 import { useFinance } from '../../context/FinanceContext';
-import { Download, Upload, FileSpreadsheet, FileCode, CheckCircle, FileText, AlertCircle } from 'lucide-react';
+import { Download, Upload, FileSpreadsheet, FileCode, CheckCircle, AlertCircle, Eye, Check, X, FileText } from 'lucide-react';
+import { TransactionType } from '../../types';
+
+interface ParsedRow {
+  id: string;
+  date: string;
+  type: TransactionType;
+  amount: number;
+  description: string;
+  category_id: string;
+  rawLine: string;
+  selected: boolean;
+}
 
 export const DataCenterView: React.FC = () => {
   const { transactions, categories, addTransaction, addToast } = useFinance();
 
   const [importStatus, setImportStatus] = useState('');
-  const [importedCount, setImportedCount] = useState(0);
+  const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   // CSV Export
   const exportToCSV = () => {
@@ -58,7 +72,72 @@ export const DataCenterView: React.FC = () => {
     addToast({ type: 'success', title: 'Copia de Seguridad', message: 'Se ha descargado el respaldo JSON.' });
   };
 
-  // CSV Import Parser
+  // Quote-aware CSV line parser
+  const parseCSVLine = (text: string): string[] => {
+    const result: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (c === '"') {
+        inQuotes = !inQuotes;
+      } else if ((c === ',' || c === ';') && !inQuotes) {
+        result.push(cur.trim());
+        cur = '';
+      } else {
+        cur += c;
+      }
+    }
+    result.push(cur.trim());
+    return result.map((s) => s.replace(/^"|"$/g, '').trim());
+  };
+
+  // Smart Date Parser (DD/MM/YYYY, YYYY-MM-DD, MM/DD/YYYY)
+  const normalizeDate = (raw: string): string => {
+    if (!raw) return new Date().toISOString().slice(0, 10);
+    const clean = raw.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+
+    const parts = clean.split(/[\/\-\.]/);
+    if (parts.length === 3) {
+      let [p1, p2, p3] = parts;
+      if (p1.length === 4) {
+        return `${p1}-${p2.padStart(2, '0')}-${p3.padStart(2, '0')}`;
+      } else if (p3.length === 4) {
+        // DD/MM/YYYY or MM/DD/YYYY
+        let day = parseInt(p1, 10);
+        let month = parseInt(p2, 10);
+        if (day > 12) {
+          return `${p3}-${p2.padStart(2, '0')}-${p1.padStart(2, '0')}`;
+        }
+        return `${p3}-${p1.padStart(2, '0')}-${p2.padStart(2, '0')}`;
+      }
+    }
+    return new Date().toISOString().slice(0, 10);
+  };
+
+  // Smart Amount Cleaner ($1,500.50 -> 1500.50)
+  const parseAmount = (raw: string): number => {
+    if (!raw) return 0;
+    let clean = raw.replace(/[^0-9\,\.\-]/g, '');
+    if (!clean) return 0;
+
+    // Handle European 1.500,50 vs 1,500.50
+    if (clean.includes(',') && clean.includes('.')) {
+      if (clean.indexOf(',') < clean.indexOf('.')) {
+        clean = clean.replace(/,/g, '');
+      } else {
+        clean = clean.replace(/\./g, '').replace(',', '.');
+      }
+    } else if (clean.includes(',')) {
+      clean = clean.replace(',', '.');
+    }
+
+    const val = parseFloat(clean);
+    return isNaN(val) ? 0 : Math.abs(val);
+  };
+
+  // Handle File Select & Process
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -68,51 +147,135 @@ export const DataCenterView: React.FC = () => {
       const text = evt.target?.result as string;
       if (!text) return;
 
-      const lines = text.split('\n').filter((l) => l.trim());
-      if (lines.length <= 1) {
-        setImportStatus('El archivo CSV parece estar vacío o sin filas de datos.');
+      const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      if (lines.length === 0) {
+        setImportStatus('El archivo CSV está vacío.');
         return;
       }
 
-      let count = 0;
-      // Skip header line
-      for (let i = 1; i < lines.length; i++) {
-        const parts = lines[i].split(',');
-        if (parts.length >= 4) {
-          const dateStr = parts[1]?.replace(/"/g, '').trim() || new Date().toISOString().slice(0, 10);
-          const typeStr = parts[2]?.replace(/"/g, '').trim().toLowerCase() === 'income' ? 'income' : 'expense';
-          const amt = parseFloat(parts[3]?.replace(/"/g, '').trim() || '0');
-          const desc = parts[5]?.replace(/"/g, '').trim() || `Importado CSV ${i}`;
+      // 1. Detect Headers
+      const rawHeader = parseCSVLine(lines[0]);
+      const lowerHeader = rawHeader.map((h) => h.toLowerCase());
 
-          if (amt > 0) {
-            addTransaction({
-              transaction_date: dateStr,
-              type: typeStr,
-              amount: amt,
-              description: desc,
-              category_id: categories[0]?.id || 'c-1',
-              notes: 'Importación masiva CSV',
-            });
-            count++;
-          }
+      let dateIdx = lowerHeader.findIndex((h) => h.includes('fecha') || h.includes('date') || h.includes('day'));
+      let descIdx = lowerHeader.findIndex((h) => h.includes('desc') || h.includes('concepto') || h.includes('detalle') || h.includes('nota') || h.includes('name'));
+      let amtIdx = lowerHeader.findIndex((h) => h.includes('monto') || h.includes('amount') || h.includes('valor') || h.includes('importe') || h.includes('total'));
+      let typeIdx = lowerHeader.findIndex((h) => h.includes('tipo') || h.includes('type') || h.includes('clase'));
+      let catIdx = lowerHeader.findIndex((h) => h.includes('cat') || h.includes('rubro'));
+
+      const hasHeader = dateIdx !== -1 || descIdx !== -1 || amtIdx !== -1;
+
+      // Fallbacks if no headers detected
+      if (dateIdx === -1) dateIdx = 0;
+      if (amtIdx === -1) amtIdx = rawHeader.length > 2 ? 2 : 1;
+      if (descIdx === -1) descIdx = rawHeader.length > 3 ? 3 : rawHeader.length - 1;
+
+      const startIndex = hasHeader ? 1 : 0;
+      const rows: ParsedRow[] = [];
+
+      for (let i = startIndex; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i]);
+        if (cols.length < 2) continue;
+
+        const rawDate = cols[dateIdx] || '';
+        const rawAmt = cols[amtIdx] || '';
+        const rawDesc = cols[descIdx] || `Transacción Importada #${i}`;
+        const rawType = typeIdx !== -1 ? cols[typeIdx]?.toLowerCase() : '';
+        const rawCat = catIdx !== -1 ? cols[catIdx] : '';
+
+        const amount = parseAmount(rawAmt);
+        if (amount <= 0) continue;
+
+        const date = normalizeDate(rawDate);
+        let type: TransactionType = 'expense';
+        if (rawType.includes('inc') || rawType.includes('ing') || rawAmt.includes('+')) {
+          type = 'income';
+        } else if (rawType.includes('exp') || rawType.includes('gas') || rawAmt.includes('-')) {
+          type = 'expense';
         }
+
+        // Match Category by Name or Default
+        let matchedCat = categories[0]?.id || 'c-1';
+        if (rawCat) {
+          const found = categories.find((c) => c.name.toLowerCase().includes(rawCat.toLowerCase()));
+          if (found) matchedCat = found.id;
+        }
+
+        rows.push({
+          id: `import-${i}-${Date.now()}`,
+          date,
+          type,
+          amount,
+          description: rawDesc || 'Importado desde CSV',
+          category_id: matchedCat,
+          rawLine: lines[i],
+          selected: true,
+        });
       }
 
-      setImportedCount(count);
-      setImportStatus(`¡Se importaron ${count} transacciones correctamente!`);
-      addToast({ type: 'success', title: 'Importación Exitosa', message: `${count} registros importados.` });
+      if (rows.length === 0) {
+        setImportStatus('No se encontraron transacciones válidas en el archivo CSV.');
+        addToast({ type: 'warning', title: 'Archivo Vacio', message: 'No hay filas válidas para importar.' });
+        return;
+      }
+
+      setParsedRows(rows);
+      setIsPreviewOpen(true);
+      setImportStatus(`Se encontraron ${rows.length} transacciones listas para revisar e importar.`);
     };
 
     reader.readAsText(file);
   };
 
+  // Confirm Import Batch
+  const handleConfirmImport = async () => {
+    const selectedRows = parsedRows.filter((r) => r.selected);
+    if (selectedRows.length === 0) {
+      addToast({ type: 'warning', title: 'Sin Selección', message: 'Selecciona al menos una fila para importar.' });
+      return;
+    }
+
+    setIsImporting(true);
+    let count = 0;
+
+    for (const row of selectedRows) {
+      addTransaction({
+        transaction_date: row.date,
+        type: row.type,
+        amount: row.amount,
+        description: row.description,
+        category_id: row.category_id,
+        notes: 'Importación Masiva CSV',
+      });
+      count++;
+    }
+
+    setIsImporting(false);
+    setIsPreviewOpen(false);
+    setParsedRows([]);
+    setImportStatus(`¡${count} transacciones fueron importadas con éxito!`);
+    addToast({
+      type: 'success',
+      title: 'Importación Completada',
+      message: `Se importaron ${count} registros a tu espacio de trabajo.`,
+    });
+  };
+
+  const toggleSelectRow = (id: string) => {
+    setParsedRows((prev) => prev.map((r) => (r.id === id ? { ...r, selected: !r.selected } : r)));
+  };
+
+  const toggleSelectAll = (select: boolean) => {
+    setParsedRows((prev) => prev.map((r) => ({ ...r, selected: select })));
+  };
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div>
         <div className="flex items-center gap-2">
           <span className="px-2.5 py-0.5 rounded-md bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/40 text-xs font-extrabold uppercase tracking-wider uf-glow-sm">
-            CENTRO DE DATOS Y EXPORTACIÓN
+            CENTRO DE DATOS Y CARGA MASIVA
           </span>
         </div>
         <h2 className="text-xl font-extrabold text-[#FFFFFF] mt-1 flex items-center gap-2">
@@ -120,7 +283,7 @@ export const DataCenterView: React.FC = () => {
           <span>Exportación, Importación y Respaldo</span>
         </h2>
         <p className="text-xs text-[#94A3B8] mt-0.5">
-          Descarga informes ejecutivos en CSV o JSON, o importa transacciones masivas desde hojas de cálculo
+          Carga archivos CSV de cualquier banco u hoja de cálculo con detección automática de columnas y vista previa
         </p>
       </div>
 
@@ -165,23 +328,23 @@ export const DataCenterView: React.FC = () => {
         <div className="p-6 rounded-2xl bg-[#080C14] border border-[#94A3B8]/20 shadow-sm space-y-5">
           <div className="flex items-center gap-2 text-[#00E5FF] font-bold text-sm">
             <Upload className="w-5 h-5" />
-            <span>Importación Masiva desde CSV</span>
+            <span>Importación Masiva de Datos (CSV)</span>
           </div>
 
           <p className="text-xs text-[#94A3B8] leading-relaxed">
-            Selecciona un archivo CSV para importar transacciones históricas automáticamente en tu espacio de trabajo.
+            Sube extractos bancarios o listas masivas de transacciones. El sistema limpia montos, fechas y descripciones automáticamente.
           </p>
 
-          <div className="relative border-2 border-dashed border-[#00E5FF]/40 rounded-2xl p-6 text-center hover:border-[#00E5FF] transition-all bg-[#080C14]">
+          <div className="relative border-2 border-dashed border-[#00E5FF]/40 rounded-2xl p-6 text-center hover:border-[#00E5FF] transition-all bg-[#080C14] group cursor-pointer">
             <input
               type="file"
-              accept=".csv"
+              accept=".csv,.txt"
               onChange={handleFileUpload}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
             />
-            <Upload className="w-8 h-8 text-[#00E5FF] mx-auto mb-2" />
+            <Upload className="w-8 h-8 text-[#00E5FF] mx-auto mb-2 group-hover:scale-110 transition-transform" />
             <p className="text-xs font-bold text-[#FFFFFF]">Haz clic o arrastra tu archivo CSV aquí</p>
-            <p className="text-[11px] text-[#94A3B8] mt-1">Formato: Fecha, Tipo, Monto, Descripción</p>
+            <p className="text-[11px] text-[#94A3B8] mt-1">Soporta cualquier orden de columnas (Bancos, Excel, etc.)</p>
           </div>
 
           {importStatus && (
@@ -192,6 +355,113 @@ export const DataCenterView: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Preview Table Modal / Drawer */}
+      {isPreviewOpen && (
+        <div className="p-6 rounded-2xl bg-[#080C14] border border-[#00E5FF]/50 space-y-4 uf-glow shadow-2xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#94A3B8]/20 pb-4">
+            <div>
+              <h3 className="text-base font-extrabold text-[#FFFFFF] flex items-center gap-2">
+                <Eye className="w-5 h-5 text-[#00E5FF]" />
+                <span>Vista Previa de Carga Masiva ({parsedRows.length} registros)</span>
+              </h3>
+              <p className="text-xs text-[#94A3B8]">
+                Revisa los datos detectados. Puedes marcar o desmarcar filas antes de confirmar la subida.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => toggleSelectAll(true)}
+                className="px-2.5 py-1 rounded-lg bg-[#94A3B8]/10 text-[#94A3B8] hover:text-[#FFFFFF] text-[11px] font-bold"
+              >
+                Marcar Todos
+              </button>
+              <button
+                onClick={() => toggleSelectAll(false)}
+                className="px-2.5 py-1 rounded-lg bg-[#94A3B8]/10 text-[#94A3B8] hover:text-[#FFFFFF] text-[11px] font-bold"
+              >
+                Desmarcar Todos
+              </button>
+            </div>
+          </div>
+
+          <div className="max-h-96 overflow-y-auto border border-[#94A3B8]/20 rounded-xl">
+            <table className="w-full text-left text-xs text-[#FFFFFF]">
+              <thead className="bg-[#080C14] sticky top-0 border-b border-[#94A3B8]/20 text-[#94A3B8] uppercase text-[11px] font-bold">
+                <tr>
+                  <th className="p-3 w-10">Importar</th>
+                  <th className="p-3">Fecha</th>
+                  <th className="p-3">Tipo</th>
+                  <th className="p-3">Monto</th>
+                  <th className="p-3">Descripción</th>
+                  <th className="p-3">Categoría</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#94A3B8]/15 font-mono">
+                {parsedRows.map((row) => (
+                  <tr
+                    key={row.id}
+                    onClick={() => toggleSelectRow(row.id)}
+                    className={`cursor-pointer transition-colors ${
+                      row.selected ? 'bg-[#00E5FF]/5 hover:bg-[#00E5FF]/10' : 'opacity-40 hover:opacity-70'
+                    }`}
+                  >
+                    <td className="p-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={row.selected}
+                        onChange={() => toggleSelectRow(row.id)}
+                        className="rounded border-[#00E5FF] text-[#00E5FF] focus:ring-0"
+                      />
+                    </td>
+                    <td className="p-3 text-[#00E5FF]">{row.date}</td>
+                    <td className="p-3">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          row.type === 'income'
+                            ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-600/40'
+                            : 'bg-rose-950/60 text-rose-400 border border-rose-600/40'
+                        }`}
+                      >
+                        {row.type === 'income' ? 'Ingreso' : 'Gasto'}
+                      </span>
+                    </td>
+                    <td className="p-3 font-bold text-[#FFFFFF]">${row.amount.toFixed(2)}</td>
+                    <td className="p-3 text-[#FFFFFF] font-sans truncate max-w-xs">{row.description}</td>
+                    <td className="p-3 text-[#94A3B8] font-sans">
+                      {categories.find((c) => c.id === row.category_id)?.name || 'General'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-xs font-bold text-[#00E5FF]">
+              {parsedRows.filter((r) => r.selected).length} de {parsedRows.length} transacciones seleccionadas
+            </span>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsPreviewOpen(false)}
+                className="px-4 py-2 rounded-xl border border-[#94A3B8]/30 text-[#94A3B8] text-xs font-bold hover:text-[#FFFFFF]"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmImport}
+                disabled={isImporting}
+                className="px-6 py-2.5 rounded-xl bg-[#00E5FF] text-[#080C14] text-xs font-black uppercase uf-glow-sm shadow-md flex items-center gap-2"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>{isImporting ? 'Importando...' : 'Confirmar e Importar Filas'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
