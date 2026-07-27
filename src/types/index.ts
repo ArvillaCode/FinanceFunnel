@@ -8,9 +8,47 @@ export type LicenseDuration = '1_month' | '3_months' | '6_months' | '1_year' | '
 
 export type LicenseStatus = 'unused' | 'active' | 'paused' | 'revoked' | 'expired';
 
+export type OrgRole = 'owner' | 'admin' | 'member' | 'viewer';
+
+export type PlanTier = 'starter' | 'pro' | 'enterprise';
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  avatar_url?: string;
+  owner_id: string;
+  plan_tier: PlanTier;
+  member_count?: number;
+  created_at: string;
+}
+
+export interface OrganizationMember {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  full_name: string;
+  email: string;
+  role: OrgRole;
+  avatar_url?: string;
+  joined_at: string;
+}
+
+export interface Invitation {
+  id: string;
+  organization_id: string;
+  email: string;
+  role: OrgRole;
+  status: 'pending' | 'accepted' | 'declined';
+  token: string;
+  created_at: string;
+  expires_at: string;
+}
+
 export interface Category {
   id: string;
   user_id?: string;
+  organization_id?: string;
   name: string;
   icon: string;
   color: string;
@@ -22,6 +60,7 @@ export interface Category {
 export interface Transaction {
   id: string;
   user_id?: string;
+  organization_id?: string;
   type: TransactionType;
   amount: number;
   description: string;
@@ -35,6 +74,7 @@ export interface Transaction {
 export interface Budget {
   id: string;
   user_id?: string;
+  organization_id?: string;
   category_id?: string | null;
   amount: number;
   month: number;
@@ -52,6 +92,7 @@ export interface Profile {
   currency: CurrencyCode;
   avatar_url?: string;
   monthly_budget_target?: number;
+  current_organization_id?: string;
   created_at?: string;
   updated_at?: string;
 }

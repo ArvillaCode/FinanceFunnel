@@ -9,7 +9,11 @@ import { TransactionList } from './components/transactions/TransactionList';
 import { BudgetManager } from './components/budgets/BudgetManager';
 import { CategoryList } from './components/categories/CategoryList';
 import { SettingsView } from './components/settings/SettingsView';
+import { TeamManagerView } from './components/team/TeamManagerView';
+import { BillingView } from './components/billing/BillingView';
+import { DataCenterView } from './components/datacenter/DataCenterView';
 import { TransactionFormModal } from './components/transactions/TransactionFormModal';
+import { QuickActionCommandModal } from './components/ui/QuickActionCommandModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { LicenseGate } from './components/auth/LicenseGate';
@@ -28,6 +32,7 @@ const MainLayout: React.FC = () => {
   const [isTxModalOpen, setIsTxModalOpen] = useState<boolean>(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isCommandModalOpen, setIsCommandModalOpen] = useState<boolean>(false);
 
   if (isLoading) {
     return (
@@ -87,6 +92,7 @@ const MainLayout: React.FC = () => {
       <Navbar
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenNewTxModal={handleOpenNewTx}
+        onOpenCommandModal={() => setIsCommandModalOpen(true)}
         onNavigate={setActiveView}
         activeView={activeView}
       />
@@ -126,6 +132,12 @@ const MainLayout: React.FC = () => {
 
           {activeView === 'categories' && <CategoryList />}
 
+          {activeView === 'team' && <TeamManagerView />}
+
+          {activeView === 'billing' && <BillingView />}
+
+          {activeView === 'datacenter' && <DataCenterView />}
+
           {activeView === 'settings' && <SettingsView />}
         </main>
       </div>
@@ -142,6 +154,13 @@ const MainLayout: React.FC = () => {
         isOpen={isTxModalOpen}
         onClose={() => setIsTxModalOpen(false)}
         transactionToEdit={editingTx}
+      />
+
+      <QuickActionCommandModal
+        isOpen={isCommandModalOpen}
+        onClose={() => setIsCommandModalOpen(false)}
+        onNavigate={setActiveView}
+        onOpenNewTxModal={handleOpenNewTx}
       />
 
       <AuthModal
