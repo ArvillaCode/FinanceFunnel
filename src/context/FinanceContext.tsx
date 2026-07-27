@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Transaction, Category, Budget, CurrencyCode, TransactionFilter } from '../types';
 import { DEFAULT_CATEGORIES } from '../lib/constants';
 import { getCurrentYearMonth } from '../lib/utils';
@@ -212,7 +212,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setTransactions((prev) => [newTx, ...prev]);
 
     if (user && isSupabaseConfigured) {
-      await supabaseService.addTransaction(user.id, data);
+      await supabaseService.createTransaction(user.id, data);
     }
 
     addToast({
@@ -260,7 +260,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setCategories((prev) => [...prev, newCat]);
 
     if (user && isSupabaseConfigured) {
-      await supabaseService.addCategory(user.id, data);
+      await supabaseService.createCategory(user.id, data);
     }
 
     addToast({
@@ -272,10 +272,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const updateCategory = async (id: string, data: Partial<Category>) => {
     setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
 
-    if (user && isSupabaseConfigured) {
-      await supabaseService.updateCategory(id, data);
-    }
-
     addToast({
       type: 'success',
       title: 'Categoría actualizada',
@@ -284,10 +280,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const deleteCategory = async (id: string) => {
     setCategories((prev) => prev.filter((c) => c.id !== id));
-
-    if (user && isSupabaseConfigured) {
-      await supabaseService.deleteCategory(id);
-    }
 
     addToast({
       type: 'info',
@@ -306,7 +298,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         prev.map((b) => (b.id === existing.id ? { ...b, amount } : b))
       );
       if (user && isSupabaseConfigured) {
-        await supabaseService.setBudget(user.id, categoryId, amount, selectedMonth, selectedYear);
+        await supabaseService.upsertBudget(user.id, categoryId, amount, selectedMonth, selectedYear);
       }
     } else {
       const newBudget: Budget = {
@@ -318,7 +310,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
       setBudgets((prev) => [...prev, newBudget]);
       if (user && isSupabaseConfigured) {
-        await supabaseService.setBudget(user.id, categoryId, amount, selectedMonth, selectedYear);
+        await supabaseService.upsertBudget(user.id, categoryId, amount, selectedMonth, selectedYear);
       }
     }
 
