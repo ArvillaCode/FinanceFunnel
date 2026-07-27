@@ -4,7 +4,7 @@ import { DEFAULT_CATEGORIES } from '../lib/constants';
 import { getCurrentYearMonth } from '../lib/utils';
 import { useAuth } from './AuthContext';
 import { supabaseService } from '../lib/supabaseService';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export interface ToastMessage {
   id: string;
@@ -74,7 +74,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [selectedYear, setSelectedYear] = useState<number>(currentYM.year);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Theme
+  // Theme (Dark / Light)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme');
     if (saved === 'dark' || saved === 'light') return saved;
@@ -83,10 +83,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     localStorage.setItem('theme', theme);
+    const htmlEl = document.documentElement;
     if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
+      htmlEl.classList.add('dark');
+      htmlEl.classList.remove('light');
     } else {
-      document.documentElement.classList.remove('dark');
+      htmlEl.classList.add('light');
+      htmlEl.classList.remove('dark');
     }
   }, [theme]);
 
@@ -103,7 +106,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setCurrencyState(curr);
   };
 
-  // State: Transactions (Clean state default: empty)
+  // State: Transactions
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     const saved = localStorage.getItem('finance_transactions');
     if (saved) {
@@ -128,26 +131,62 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return [];
   });
 
-  // Load user data from Supabase when authenticated
+  // Fetch initial data from Supabase
+  const loadRemoteData = async (userId: string) => {
+    setIsLoading(true);
+    try {
+      const [remoteTxs, remoteCats, remoteBudgets] = await Promise.all([
+        supabaseService.getTransactions(userId),
+        supabaseService.getCategories(userId),
+        supabaseService.getBudgets(userId),
+      ]);
+      setTransactions(remoteTxs || []);
+      if (remoteCats && remoteCats.length > 0) setCategories(remoteCats);
+      setBudgets(remoteBudgets || []);
+    } catch (err) {
+      console.error('Error al obtener datos de Supabase:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load user data & Subscribe to Realtime Updates for instant Mobile <-> PC synchronization!
   useEffect(() => {
     if (user && isSupabaseConfigured) {
-      setIsLoading(true);
-      Promise.all([
-        supabaseService.getTransactions(user.id),
-        supabaseService.getCategories(user.id),
-        supabaseService.getBudgets(user.id),
-      ])
-        .then(([remoteTxs, remoteCats, remoteBudgets]) => {
-          setTransactions(remoteTxs || []);
-          if (remoteCats && remoteCats.length > 0) setCategories(remoteCats);
-          setBudgets(remoteBudgets || []);
-        })
-        .catch((err) => {
-          console.error('Error al sincronizar con Supabase:', err);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
+      loadRemoteData(user.id);
+
+      if (supabase) {
+        const channel = supabase
+          .channel('finance_realtime_sync')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` },
+            () => {
+              supabaseService.getTransactions(user.id).then((txs) => setTransactions(txs || []));
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'categories' },
+            () => {
+              supabaseService.getCategories(user.id).then((cats) => {
+                if (cats && cats.length > 0) setCategories(cats);
+              });
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'budgets', filter: `user_id=eq.${user.id}` },
+            () => {
+              supabaseService.getBudgets(user.id).then((b) => setBudgets(b || []));
+            }
+          )
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(channel);
+        };
+      }
     } else if (!user) {
       setTransactions([]);
       setBudgets([]);
@@ -202,17 +241,19 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Transaction CRUD
   const addTransaction = async (data: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {
-    const newTx: Transaction = {
-      ...data,
-      id: `tx-${Date.now()}`,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    setTransactions((prev) => [newTx, ...prev]);
-
     if (user && isSupabaseConfigured) {
-      await supabaseService.createTransaction(user.id, data);
+      const created = await supabaseService.createTransaction(user.id, data);
+      if (created) {
+        setTransactions((prev) => [created, ...prev.filter((t) => t.id !== created.id)]);
+      }
+    } else {
+      const newTx: Transaction = {
+        ...data,
+        id: `tx-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      setTransactions((prev) => [newTx, ...prev]);
     }
 
     addToast({
@@ -252,15 +293,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Category CRUD
   const addCategory = async (data: Omit<Category, 'id'>) => {
-    const newCat: Category = {
-      ...data,
-      id: `cat-${Date.now()}`,
-    };
-
-    setCategories((prev) => [...prev, newCat]);
-
     if (user && isSupabaseConfigured) {
-      await supabaseService.createCategory(user.id, data);
+      const created = await supabaseService.createCategory(user.id, data);
+      if (created) {
+        setCategories((prev) => [...prev, created]);
+      }
+    } else {
+      const newCat: Category = {
+        ...data,
+        id: `cat-${Date.now()}`,
+      };
+      setCategories((prev) => [...prev, newCat]);
     }
 
     addToast({
@@ -344,7 +387,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Filtered transactions computation
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
-      // Search
       if (filter.search) {
         const query = filter.search.toLowerCase();
         const descMatch = t.description.toLowerCase().includes(query);
@@ -352,17 +394,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (!descMatch && !notesMatch) return false;
       }
 
-      // Type
       if (filter.type !== 'all' && t.type !== filter.type) {
         return false;
       }
 
-      // Category
       if (filter.category_id !== 'all' && t.category_id !== filter.category_id) {
         return false;
       }
 
-      // Date range
       if (filter.startDate && t.transaction_date < filter.startDate) {
         return false;
       }
@@ -370,7 +409,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return false;
       }
 
-      // Amount range
       if (filter.minAmount && t.amount < parseFloat(filter.minAmount)) {
         return false;
       }
