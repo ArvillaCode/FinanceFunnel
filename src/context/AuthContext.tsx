@@ -14,15 +14,6 @@ interface AuthContextType {
   enableDemoMode: () => void;
 }
 
-const DEFAULT_PROFILE: Profile = {
-  id: 'demo-user-123',
-  full_name: 'Alex Rodríguez',
-  email: 'alex.rodriguez@ejemplo.com',
-  currency: 'USD',
-  monthly_budget_target: 2600,
-  created_at: new Date().toISOString(),
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -32,14 +23,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         return JSON.parse(saved);
       } catch {
-        return DEFAULT_PROFILE;
+        return null;
       }
     }
-    return DEFAULT_PROFILE;
+    return null;
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isDemoUser, setIsDemoUser] = useState<boolean>(!isSupabaseConfigured);
+  const [isDemoUser, setIsDemoUser] = useState<boolean>(false);
 
   useEffect(() => {
     if (user) {
@@ -49,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
+  // Listener para sincronización en tiempo real de la sesión de Supabase
   useEffect(() => {
     async function initAuth() {
       if (isSupabaseConfigured && supabase) {
@@ -56,37 +48,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             setIsDemoUser(false);
-            // Fetch profile
             const { data: profile } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
 
-            if (profile) {
-              setUser({
-                id: profile.id,
-                full_name: profile.full_name || session.user.user_metadata?.full_name || 'Usuario',
-                email: session.user.email || '',
-                currency: profile.currency || 'USD',
-              });
-            } else {
-              setUser({
-                id: session.user.id,
-                full_name: session.user.user_metadata?.full_name || 'Usuario',
-                email: session.user.email || '',
-                currency: 'USD',
-              });
-            }
+            setUser({
+              id: session.user.id,
+              full_name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuario',
+              email: session.user.email || '',
+              currency: profile?.currency || 'USD',
+            });
           }
         } catch (err) {
-          console.error('Supabase auth error:', err);
+          console.error('Error al inicializar sesión de Supabase:', err);
         }
       }
       setIsLoading(false);
     }
 
     initAuth();
+
+    if (isSupabaseConfigured && supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user) {
+          setIsDemoUser(false);
+          setUser({
+            id: session.user.id,
+            full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuario',
+            email: session.user.email || '',
+            currency: 'USD',
+          });
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setIsDemoUser(false);
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
   }, []);
 
   const signIn = async (email: string, password?: string): Promise<{ error?: string }> => {
@@ -105,11 +108,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {};
     }
 
-    // Demo sign in
+    // Login en modo demo si no hay Supabase configurado
     setIsDemoUser(true);
     setUser({
-      id: 'demo-user-123',
-      full_name: email.split('@')[0] ? email.split('@')[0].toUpperCase() : 'Alex Rodríguez',
+      id: `demo-${Date.now()}`,
+      full_name: email.split('@')[0] ? email.split('@')[0].toUpperCase() : 'Usuario Demo',
       email: email,
       currency: 'USD',
     });
@@ -138,7 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {};
     }
 
-    // Demo sign up
+    // Registro en modo local
     setIsDemoUser(true);
     setUser({
       id: `user-${Date.now()}`,
@@ -154,6 +157,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
     }
     setUser(null);
+    setIsDemoUser(false);
+    localStorage.removeItem('finance_user_profile');
+    localStorage.removeItem('finance_transactions');
+    localStorage.removeItem('finance_budgets');
   };
 
   const resetPassword = async (email: string): Promise<{ success: boolean; message: string }> => {
@@ -164,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     return {
       success: true,
-      message: 'Modo Demo: Instrucciones de recuperación enviadas a ' + email,
+      message: 'Modo Demo: Correo de recuperación simulado a ' + email,
     };
   };
 
@@ -185,7 +192,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const enableDemoMode = () => {
     setIsDemoUser(true);
-    setUser(DEFAULT_PROFILE);
+    setUser({
+      id: 'demo-user-guest',
+      full_name: 'Usuario Demo',
+      email: 'invitado@upfunnel.com',
+      currency: 'USD',
+    });
   };
 
   return (

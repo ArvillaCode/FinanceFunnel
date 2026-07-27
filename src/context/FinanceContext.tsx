@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Transaction, Category, Budget, CurrencyCode, TransactionFilter } from '../types';
 import { DEFAULT_CATEGORIES } from '../lib/constants';
-import { generateSeedData } from '../lib/demoData';
-import { getCurrentYearMonth, getMonthlyTotals } from '../lib/utils';
+import { getCurrentYearMonth } from '../lib/utils';
 import { useAuth } from './AuthContext';
 import { supabaseService } from '../lib/supabaseService';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -104,14 +103,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setCurrencyState(curr);
   };
 
-  // State: Transactions, Categories, Budgets
+  // State: Transactions (Clean state default: empty)
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     const saved = localStorage.getItem('finance_transactions');
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
-    const seed = generateSeedData();
-    return seed.transactions;
+    return [];
   });
 
   const [categories, setCategories] = useState<Category[]>(() => {
@@ -127,11 +125,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
-    const seed = generateSeedData();
-    return seed.budgets;
+    return [];
   });
 
-  // Load data from Supabase when user is authenticated
+  // Load user data from Supabase when authenticated
   useEffect(() => {
     if (user && isSupabaseConfigured) {
       setIsLoading(true);
@@ -141,9 +138,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         supabaseService.getBudgets(user.id),
       ])
         .then(([remoteTxs, remoteCats, remoteBudgets]) => {
-          if (remoteTxs.length > 0) setTransactions(remoteTxs);
-          if (remoteCats.length > 0) setCategories(remoteCats);
-          if (remoteBudgets.length > 0) setBudgets(remoteBudgets);
+          setTransactions(remoteTxs || []);
+          if (remoteCats && remoteCats.length > 0) setCategories(remoteCats);
+          setBudgets(remoteBudgets || []);
         })
         .catch((err) => {
           console.error('Error al sincronizar con Supabase:', err);
@@ -151,10 +148,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .finally(() => {
           setIsLoading(false);
         });
+    } else if (!user) {
+      setTransactions([]);
+      setBudgets([]);
     }
   }, [user?.id]);
 
-  // Save changes to localStorage for offline/demo mode
+  // Persist to local storage for guest/offline
   useEffect(() => {
     if (!user) {
       localStorage.setItem('finance_transactions', JSON.stringify(transactions));
@@ -200,38 +200,25 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Transaction Actions with Supabase Sync
+  // Transaction CRUD
   const addTransaction = async (data: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {
-    const tempId = `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    const newTransaction: Transaction = {
+    const newTx: Transaction = {
       ...data,
-      id: tempId,
-      user_id: user?.id || 'demo-user',
+      id: `tx-${Date.now()}`,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    setTransactions((prev) => [newTransaction, ...prev]);
+    setTransactions((prev) => [newTx, ...prev]);
 
     if (user && isSupabaseConfigured) {
-      try {
-        const savedTx = await supabaseService.createTransaction(user.id, data);
-        if (savedTx) {
-          setTransactions((prev) => prev.map((t) => (t.id === tempId ? savedTx : t)));
-        }
-      } catch (err) {
-        addToast({
-          type: 'error',
-          title: 'Error de sincronización',
-          message: 'No se pudo guardar la transacción en Supabase.',
-        });
-      }
+      await supabaseService.addTransaction(user.id, data);
     }
 
     addToast({
       type: 'success',
       title: 'Transacción creada',
-      message: `${data.type === 'income' ? 'Ingreso' : 'Gasto'} de $${data.amount} registrado con éxito.`,
+      message: `${data.type === 'income' ? 'Ingreso' : 'Gasto'} registrado correctamente.`,
     });
   };
 
@@ -241,20 +228,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
 
     if (user && isSupabaseConfigured) {
-      try {
-        await supabaseService.updateTransaction(id, data);
-      } catch (err) {
-        addToast({
-          type: 'error',
-          title: 'Error al actualizar en Supabase',
-        });
-      }
+      await supabaseService.updateTransaction(id, data);
     }
 
     addToast({
-      type: 'info',
+      type: 'success',
       title: 'Transacción actualizada',
-      message: 'Los cambios han sido guardados.',
     });
   };
 
@@ -262,141 +241,164 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setTransactions((prev) => prev.filter((t) => t.id !== id));
 
     if (user && isSupabaseConfigured) {
-      try {
-        await supabaseService.deleteTransaction(id);
-      } catch (err) {
-        addToast({
-          type: 'error',
-          title: 'Error al eliminar en Supabase',
-        });
-      }
+      await supabaseService.deleteTransaction(id);
     }
 
     addToast({
-      type: 'warning',
+      type: 'info',
       title: 'Transacción eliminada',
-      message: 'La transacción fue eliminada correctamente.',
     });
   };
 
-  // Category Actions
-  const addCategory = (data: Omit<Category, 'id'>) => {
+  // Category CRUD
+  const addCategory = async (data: Omit<Category, 'id'>) => {
     const newCat: Category = {
       ...data,
-      id: `cat-custom-${Date.now()}`,
-      user_id: user?.id,
-      is_default: false,
+      id: `cat-${Date.now()}`,
     };
+
     setCategories((prev) => [...prev, newCat]);
+
+    if (user && isSupabaseConfigured) {
+      await supabaseService.addCategory(user.id, data);
+    }
+
     addToast({
       type: 'success',
-      title: 'Categoría agregada',
-      message: `Categoría "${data.name}" creada.`,
+      title: 'Categoría creada',
     });
   };
 
-  const updateCategory = (id: string, data: Partial<Category>) => {
+  const updateCategory = async (id: string, data: Partial<Category>) => {
     setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
+
+    if (user && isSupabaseConfigured) {
+      await supabaseService.updateCategory(id, data);
+    }
+
     addToast({
-      type: 'info',
+      type: 'success',
       title: 'Categoría actualizada',
     });
   };
 
-  const deleteCategory = (id: string) => {
+  const deleteCategory = async (id: string) => {
     setCategories((prev) => prev.filter((c) => c.id !== id));
+
+    if (user && isSupabaseConfigured) {
+      await supabaseService.deleteCategory(id);
+    }
+
     addToast({
-      type: 'warning',
+      type: 'info',
       title: 'Categoría eliminada',
     });
   };
 
-  // Budget Actions
-  const setCategoryBudget = (categoryId: string | null, amount: number) => {
-    setBudgets((prev) => {
-      const existingIndex = prev.findIndex(
-        (b) => b.category_id === categoryId && b.month === selectedMonth && b.year === selectedYear
+  // Budget CRUD
+  const setCategoryBudget = async (categoryId: string | null, amount: number) => {
+    const existing = budgets.find(
+      (b) => b.category_id === categoryId && b.month === selectedMonth && b.year === selectedYear
+    );
+
+    if (existing) {
+      setBudgets((prev) =>
+        prev.map((b) => (b.id === existing.id ? { ...b, amount } : b))
       );
-
-      if (existingIndex >= 0) {
-        const copy = [...prev];
-        copy[existingIndex] = {
-          ...copy[existingIndex],
-          amount,
-          updated_at: new Date().toISOString(),
-        };
-        return copy;
+      if (user && isSupabaseConfigured) {
+        await supabaseService.setBudget(user.id, categoryId, amount, selectedMonth, selectedYear);
       }
-
-      return [
-        ...prev,
-        {
-          id: `bgt-${Date.now()}`,
-          user_id: user?.id,
-          category_id: categoryId,
-          amount,
-          month: selectedMonth,
-          year: selectedYear,
-          created_at: new Date().toISOString(),
-        },
-      ];
-    });
+    } else {
+      const newBudget: Budget = {
+        id: `b-${Date.now()}`,
+        category_id: categoryId,
+        amount,
+        month: selectedMonth,
+        year: selectedYear,
+      };
+      setBudgets((prev) => [...prev, newBudget]);
+      if (user && isSupabaseConfigured) {
+        await supabaseService.setBudget(user.id, categoryId, amount, selectedMonth, selectedYear);
+      }
+    }
 
     addToast({
       type: 'success',
-      title: 'Presupuesto actualizado',
-      message: `Límite guardado correctamente.`,
+      title: 'Presupuesto guardado',
     });
   };
 
-  const deleteBudget = (id: string) => {
+  const deleteBudget = async (id: string) => {
     setBudgets((prev) => prev.filter((b) => b.id !== id));
-  };
-
-  const resetDemoData = () => {
-    const seed = generateSeedData();
-    setTransactions(seed.transactions);
-    setCategories(seed.categories);
-    setBudgets(seed.budgets);
     addToast({
       type: 'info',
-      title: 'Datos de prueba restablecidos',
-      message: 'Se cargaron las transacciones de los últimos 6 meses.',
+      title: 'Presupuesto eliminado',
     });
   };
 
-  // Filtered transactions selector
+  // Reset/Clear data
+  const resetDemoData = () => {
+    setTransactions([]);
+    setBudgets([]);
+    localStorage.removeItem('finance_transactions');
+    localStorage.removeItem('finance_budgets');
+    addToast({
+      type: 'info',
+      title: 'Plataforma limpia',
+      message: 'Se han eliminado todos los datos. La aplicación está como nueva.',
+    });
+  };
+
+  // Filtered transactions computation
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
-      // Type filter
-      if (filter.type !== 'all' && t.type !== filter.type) return false;
-
-      // Category filter
-      if (filter.category_id !== 'all' && t.category_id !== filter.category_id) return false;
-
       // Search
-      if (filter.search.trim()) {
-        const q = filter.search.toLowerCase().trim();
-        const descMatch = t.description?.toLowerCase().includes(q);
-        const notesMatch = t.notes?.toLowerCase().includes(q);
+      if (filter.search) {
+        const query = filter.search.toLowerCase();
+        const descMatch = t.description.toLowerCase().includes(query);
+        const notesMatch = t.notes?.toLowerCase().includes(query) || false;
         if (!descMatch && !notesMatch) return false;
       }
 
+      // Type
+      if (filter.type !== 'all' && t.type !== filter.type) {
+        return false;
+      }
+
+      // Category
+      if (filter.category_id !== 'all' && t.category_id !== filter.category_id) {
+        return false;
+      }
+
       // Date range
-      if (filter.startDate && t.transaction_date < filter.startDate) return false;
-      if (filter.endDate && t.transaction_date > filter.endDate) return false;
+      if (filter.startDate && t.transaction_date < filter.startDate) {
+        return false;
+      }
+      if (filter.endDate && t.transaction_date > filter.endDate) {
+        return false;
+      }
 
       // Amount range
-      if (filter.minAmount && t.amount < Number(filter.minAmount)) return false;
-      if (filter.maxAmount && t.amount > Number(filter.maxAmount)) return false;
+      if (filter.minAmount && t.amount < parseFloat(filter.minAmount)) {
+        return false;
+      }
+      if (filter.maxAmount && t.amount > parseFloat(filter.maxAmount)) {
+        return false;
+      }
 
       return true;
     }).sort((a, b) => {
-      if (filter.sortBy === 'date_desc') return b.transaction_date.localeCompare(a.transaction_date);
-      if (filter.sortBy === 'date_asc') return a.transaction_date.localeCompare(b.transaction_date);
-      if (filter.sortBy === 'amount_desc') return b.amount - a.amount;
-      if (filter.sortBy === 'amount_asc') return a.amount - b.amount;
-      return 0;
+      switch (filter.sortBy) {
+        case 'date_asc':
+          return a.transaction_date.localeCompare(b.transaction_date);
+        case 'amount_desc':
+          return b.amount - a.amount;
+        case 'amount_asc':
+          return a.amount - b.amount;
+        case 'date_desc':
+        default:
+          return b.transaction_date.localeCompare(a.transaction_date);
+      }
     });
   }, [transactions, filter]);
 
