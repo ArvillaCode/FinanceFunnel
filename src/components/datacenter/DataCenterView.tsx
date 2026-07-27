@@ -269,6 +269,34 @@ export const DataCenterView: React.FC = () => {
     setParsedRows((prev) => prev.map((r) => ({ ...r, selected: select })));
   };
 
+  // Download Sample CSV Template
+  const downloadSampleCSV = () => {
+    const sampleHeaders = ['Fecha', 'Tipo', 'Monto', 'Descripción', 'Categoría'];
+    const sampleRows = [
+      ['2026-07-01', 'Ingreso', '2500.00', '"Venta de Consultoría SaaS"', '"Ventas"'],
+      ['2026-07-03', 'Gasto', '150.50', '"Suscripción Licencias Software"', '"Herramientas"'],
+      ['2026-07-05', 'Ingreso', '4800.00', '"Cobro Factura Proyecto Upfunnel"', '"Ventas"'],
+      ['2026-07-10', 'Gasto', '85.00', '"Almuerzo Ejecutivo y Café"', '"Alimentación"'],
+      ['2026-07-15', 'Gasto', '320.00', '"Campaña Publicitaria Meta & Google Ads"', '"Marketing"'],
+      ['2026-07-20', 'Ingreso', '1200.00', '"Pago Cliente Servicio Funnel"', '"Ventas"'],
+      ['2026-07-25', 'Gasto', '45.00', '"Servicios de Hosting Cloud"', '"Infraestructura"'],
+    ];
+
+    const csvContent = [sampleHeaders.join(','), ...sampleRows.map((e) => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `financefunnel_plantilla_ejemplo.csv`;
+    link.click();
+
+    addToast({
+      type: 'info',
+      title: 'Plantilla Descargada',
+      message: 'Se descargó el archivo financefunnel_plantilla_ejemplo.csv con datos de muestra.',
+    });
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
@@ -335,16 +363,26 @@ export const DataCenterView: React.FC = () => {
             Sube extractos bancarios o listas masivas de transacciones. El sistema limpia montos, fechas y descripciones automáticamente.
           </p>
 
-          <div className="relative border-2 border-dashed border-[#00E5FF]/40 rounded-2xl p-6 text-center hover:border-[#00E5FF] transition-all bg-[#080C14] group cursor-pointer">
-            <input
-              type="file"
-              accept=".csv,.txt"
-              onChange={handleFileUpload}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-            />
-            <Upload className="w-8 h-8 text-[#00E5FF] mx-auto mb-2 group-hover:scale-110 transition-transform" />
-            <p className="text-xs font-bold text-[#FFFFFF]">Haz clic o arrastra tu archivo CSV aquí</p>
-            <p className="text-[11px] text-[#94A3B8] mt-1">Soporta cualquier orden de columnas (Bancos, Excel, etc.)</p>
+          <div className="space-y-3">
+            <div className="relative border-2 border-dashed border-[#00E5FF]/40 rounded-2xl p-6 text-center hover:border-[#00E5FF] transition-all bg-[#080C14] group cursor-pointer">
+              <input
+                type="file"
+                accept=".csv,.txt"
+                onChange={handleFileUpload}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              />
+              <Upload className="w-8 h-8 text-[#00E5FF] mx-auto mb-2 group-hover:scale-110 transition-transform" />
+              <p className="text-xs font-bold text-[#FFFFFF]">Haz clic o arrastra tu archivo CSV aquí</p>
+              <p className="text-[11px] text-[#94A3B8] mt-1">Soporta cualquier orden de columnas (Bancos, Excel, etc.)</p>
+            </div>
+
+            <button
+              onClick={downloadSampleCSV}
+              className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border border-[#00E5FF]/40 text-[#00E5FF] text-xs font-bold hover:bg-[#00E5FF]/10 transition-all uf-glow-sm"
+            >
+              <Download className="w-4 h-4 text-[#00E5FF]" />
+              <span>Descargar Plantilla de Ejemplo (.csv)</span>
+            </button>
           </div>
 
           {importStatus && (
