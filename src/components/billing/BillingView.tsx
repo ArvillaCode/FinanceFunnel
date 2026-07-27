@@ -81,7 +81,7 @@ export const BillingView: React.FC = () => {
           <span>Planes y Monetización de la Plataforma</span>
         </h2>
         <p className="text-xs text-[#94A3B8] mt-0.5">
-          Elige el plan que mejor se adapte a tu volumen de transacciones y tamaño de equipo
+          Pasa el cursor sobre cualquiera de los planes para desplegar sus detalles y ver el efecto flotante
         </p>
       </div>
 
@@ -92,17 +92,17 @@ export const BillingView: React.FC = () => {
         </div>
       )}
 
-      {/* Floating Plan Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 pb-6 items-stretch">
+      {/* Floating Hover Plan Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 pb-8 items-stretch">
         {PLANS.map((plan) => {
           const isCurrent = currentPlan === plan.id;
           return (
             <div
               key={plan.id}
-              className={`p-6 rounded-3xl bg-[#080C14] border backdrop-blur-md uf-hover-float flex flex-col justify-between space-y-6 ${
+              className={`p-6 rounded-3xl bg-[#080C14] border uf-hover-float flex flex-col justify-between space-y-6 cursor-pointer relative ${
                 plan.highlight
-                  ? 'border-[#00E5FF] animate-float-pro uf-glow shadow-2xl relative z-10'
-                  : 'border-[#94A3B8]/25 animate-float-subtle hover:border-[#00E5FF]/60'
+                  ? 'border-[#00E5FF]/60 uf-glow-sm shadow-xl'
+                  : 'border-[#94A3B8]/25 hover:border-[#00E5FF]'
               }`}
             >
               {plan.highlight && (
