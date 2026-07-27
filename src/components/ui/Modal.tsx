@@ -50,7 +50,7 @@ export const Modal: React.FC<ModalProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-[#080C14]/80 backdrop-blur-md transition-opacity"
           />
 
           {/* Dialog Card */}
@@ -59,22 +59,22 @@ export const Modal: React.FC<ModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className={`relative w-full ${getMaxWidthClass()} bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl z-10 my-auto overflow-hidden`}
+            className={`relative w-full ${getMaxWidthClass()} bg-[#080C14] border border-[#00E5FF]/30 rounded-2xl shadow-2xl z-10 my-auto overflow-hidden uf-glow-sm`}
           >
             {title && (
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[#94A3B8]/20">
+                <h3 className="text-lg font-bold text-[#FFFFFF]">
                   {title}
                 </h3>
                 <button
                   onClick={onClose}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="p-1.5 rounded-xl text-[#94A3B8] hover:text-[#00E5FF] hover:bg-[#00E5FF]/10 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             )}
-            <div className="p-6 max-h-[80vh] overflow-y-auto">{children}</div>
+            <div className="p-6 max-h-[80vh] overflow-y-auto text-[#FFFFFF]">{children}</div>
           </motion.div>
         </div>
       )}

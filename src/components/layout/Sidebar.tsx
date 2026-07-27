@@ -35,7 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className={`hidden md:flex flex-col border-r border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-[#1e293b] transition-all duration-300 z-20 ${
+      className={`hidden md:flex flex-col border-r border-[#94A3B8]/20 bg-[#080C14] transition-all duration-300 z-20 ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}
     >
@@ -43,7 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-4 flex items-center justify-end">
         <button
           onClick={onToggleCollapse}
-          className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="p-1.5 rounded-xl text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#94A3B8]/10 transition-colors"
           title={isCollapsed ? 'Expandir menú' : 'Colapsar menú'}
         >
           {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
@@ -54,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="px-3 mb-4">
         <button
           onClick={onOpenNewTxModal}
-          className={`w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm shadow-md shadow-emerald-600/20 transition-all ${
+          className={`w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-[#00E5FF] hover:bg-[#00E5FF]/90 text-[#080C14] font-bold text-sm shadow-md shadow-[#00E5FF]/20 transition-all uf-glow-sm ${
             isCollapsed ? 'px-0' : ''
           }`}
           title="Agregar Transacción"
@@ -65,7 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Nav List */}
-      <nav className="flex-1 px-3 space-y-1">
+      <nav className="flex-1 px-3 space-y-1.5">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeView === item.id;
@@ -75,11 +75,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => onNavigate(item.id)}
               className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-sm font-medium transition-all ${
                 isActive
-                  ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-semibold shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100'
+                  ? 'bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-[#00E5FF] font-bold shadow-xs uf-glow-sm'
+                  : 'text-[#94A3B8] hover:bg-[#94A3B8]/10 hover:text-[#FFFFFF]'
               } ${isCollapsed ? 'justify-center px-0' : ''}`}
             >
-              <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : ''}`} />
+              <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-[#00E5FF]' : ''}`} />
               {!isCollapsed && <span>{item.label}</span>}
             </button>
           );
@@ -88,8 +88,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Footer */}
       {!isCollapsed && (
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 text-center">
-          Gestión Financiera v1.0
+        <div className="p-4 border-t border-[#94A3B8]/15 text-[11px] text-[#94A3B8] text-center font-mono">
+          Upfunnel Finance v1.0
         </div>
       )}
     </aside>

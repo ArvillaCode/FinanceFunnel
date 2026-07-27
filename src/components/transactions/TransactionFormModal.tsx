@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useFinance } from '../../context/FinanceContext';
 import { Transaction, TransactionType } from '../../types';
-import { IconHelper } from '../ui/IconHelper';
-import { DollarSign, Calendar, Tag, FileText, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { DollarSign, Tag, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 
 interface TransactionFormModalProps {
   isOpen: boolean;
@@ -38,7 +37,6 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       setType('expense');
       setAmount('');
       setDescription('');
-      // Default to today or first day of active period
       const today = new Date();
       const yrStr = String(selectedYear);
       const moStr = String(selectedMonth).padStart(2, '0');
@@ -49,12 +47,10 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     setErrors({});
   }, [transactionToEdit, isOpen, selectedMonth, selectedYear]);
 
-  // Filter categories by selected type
   const availableCategories = categories.filter(
     (c) => c.type === 'both' || c.type === type
   );
 
-  // Auto-select first available category if current selection is invalid
   useEffect(() => {
     if (availableCategories.length > 0 && !availableCategories.some((c) => c.id === categoryId)) {
       setCategoryId(availableCategories[0].id);
@@ -119,14 +115,14 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Type Selector Tabs */}
-        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+        <div className="grid grid-cols-2 gap-2 p-1 bg-[#080C14] border border-[#94A3B8]/20 rounded-xl">
           <button
             type="button"
             onClick={() => setType('expense')}
             className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all ${
               type === 'expense'
-                ? 'bg-rose-500 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                ? 'bg-[#FFFFFF] text-[#080C14] shadow-sm'
+                : 'text-[#94A3B8] hover:text-[#FFFFFF]'
             }`}
           >
             <ArrowDownCircle className="w-4 h-4" />
@@ -138,8 +134,8 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
             onClick={() => setType('income')}
             className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all ${
               type === 'income'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                ? 'bg-[#00E5FF] text-[#080C14] shadow-sm uf-glow-sm'
+                : 'text-[#94A3B8] hover:text-[#FFFFFF]'
             }`}
           >
             <ArrowUpCircle className="w-4 h-4" />
@@ -149,26 +145,26 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
 
         {/* Amount */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-semibold text-[#94A3B8] mb-1">
             Monto ($)
           </label>
           <div className="relative">
-            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]" />
             <input
               type="number"
               step="0.01"
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-lg font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-10 pr-4 py-2.5 bg-[#080C14] border border-[#94A3B8]/30 rounded-xl text-lg font-bold text-[#FFFFFF] focus:outline-none focus:border-[#00E5FF]"
             />
           </div>
-          {errors.amount && <p className="text-xs text-rose-500 mt-1">{errors.amount}</p>}
+          {errors.amount && <p className="text-xs text-[#FFFFFF] font-bold mt-1">{errors.amount}</p>}
         </div>
 
         {/* Description */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-semibold text-[#94A3B8] mb-1">
             Descripción
           </label>
           <input
@@ -176,38 +172,38 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
             placeholder="Ej. Supermercado, Nomina, Restaurante..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3.5 py-2.5 bg-[#080C14] border border-[#94A3B8]/30 rounded-xl text-xs font-medium text-[#FFFFFF] focus:outline-none focus:border-[#00E5FF]"
           />
-          {errors.description && <p className="text-xs text-rose-500 mt-1">{errors.description}</p>}
+          {errors.description && <p className="text-xs text-[#FFFFFF] font-bold mt-1">{errors.description}</p>}
         </div>
 
         {/* Category & Date Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Category */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-[#94A3B8] mb-1">
               Categoría
             </label>
             <div className="relative">
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full pl-3 pr-8 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
+                className="w-full pl-3 pr-8 py-2.5 bg-[#080C14] border border-[#94A3B8]/30 rounded-xl text-xs font-medium text-[#FFFFFF] focus:outline-none focus:border-[#00E5FF] appearance-none cursor-pointer"
               >
                 {availableCategories.map((c) => (
-                  <option key={c.id} value={c.id}>
+                  <option key={c.id} value={c.id} className="bg-[#080C14] text-[#FFFFFF]">
                     {c.name}
                   </option>
                 ))}
               </select>
-              <Tag className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <Tag className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
             </div>
-            {errors.category && <p className="text-xs text-rose-500 mt-1">{errors.category}</p>}
+            {errors.category && <p className="text-xs text-[#FFFFFF] font-bold mt-1">{errors.category}</p>}
           </div>
 
           {/* Date */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-[#94A3B8] mb-1">
               Fecha
             </label>
             <div className="relative">
@@ -215,16 +211,16 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2.5 bg-[#080C14] border border-[#94A3B8]/30 rounded-xl text-xs font-medium text-[#FFFFFF] focus:outline-none focus:border-[#00E5FF]"
               />
             </div>
-            {errors.date && <p className="text-xs text-rose-500 mt-1">{errors.date}</p>}
+            {errors.date && <p className="text-xs text-[#FFFFFF] font-bold mt-1">{errors.date}</p>}
           </div>
         </div>
 
         {/* Notes */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-semibold text-[#94A3B8] mb-1">
             Notas Adicionales (Opcional)
           </label>
           <textarea
@@ -232,22 +228,22 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
             placeholder="Añade detalles o recibo..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3.5 py-2 bg-[#080C14] border border-[#94A3B8]/30 rounded-xl text-xs text-[#FFFFFF] focus:outline-none focus:border-[#00E5FF]"
           />
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#94A3B8]/20">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="px-4 py-2.5 rounded-xl border border-[#94A3B8]/30 text-[#94A3B8] text-xs font-semibold hover:text-[#FFFFFF]"
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all hover:scale-[1.01]"
+            className="px-5 py-2.5 rounded-xl bg-[#00E5FF] text-[#080C14] text-xs font-bold hover:bg-[#00E5FF]/90 uf-glow-sm"
           >
             {transactionToEdit ? 'Guardar Cambios' : 'Crear Transacción'}
           </button>

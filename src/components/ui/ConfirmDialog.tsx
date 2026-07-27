@@ -19,27 +19,20 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   title,
   description,
-  confirmText = 'Eliminar',
+  confirmText = 'Confirmar',
   cancelText = 'Cancelar',
-  isDangerous = true,
 }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="sm">
       <div className="flex flex-col items-center text-center">
-        <div
-          className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
-            isDangerous
-              ? 'bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400'
-              : 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'
-          }`}
-        >
+        <div className="w-12 h-12 rounded-full bg-[#080C14] border border-[#00E5FF]/40 text-[#00E5FF] flex items-center justify-center mb-4 uf-glow-sm">
           <AlertTriangle className="w-6 h-6" />
         </div>
 
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+        <h3 className="text-lg font-bold text-[#FFFFFF] mb-2">
           {title}
         </h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+        <p className="text-sm text-[#94A3B8] mb-6">
           {description}
         </p>
 
@@ -47,7 +40,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="flex-1 px-4 py-2.5 rounded-xl border border-[#94A3B8]/30 text-[#94A3B8] font-bold text-sm hover:text-[#FFFFFF] transition-colors"
           >
             {cancelText}
           </button>
@@ -57,11 +50,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               onConfirm();
               onClose();
             }}
-            className={`flex-1 px-4 py-2.5 rounded-xl font-medium text-sm text-white transition-colors ${
-              isDangerous
-                ? 'bg-rose-600 hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600'
-                : 'bg-indigo-600 hover:bg-indigo-700'
-            }`}
+            className="flex-1 px-4 py-2.5 rounded-xl font-bold text-sm bg-[#00E5FF] text-[#080C14] hover:bg-[#00E5FF]/90 transition-colors uf-glow-sm"
           >
             {confirmText}
           </button>
