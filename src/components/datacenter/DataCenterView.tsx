@@ -255,21 +255,8 @@ export const DataCenterView: React.FC = () => {
 
     const count = await addBulkTransactions(dataList);
 
-    setIsImporting(false);
-    setIsPreviewOpen(false);
     setParsedRows([]);
     setImportStatus(`¡${count} transacciones importadas con éxito instantáneamente!`);
-  };
-
-    setIsImporting(false);
-    setIsPreviewOpen(false);
-    setParsedRows([]);
-    setImportStatus(`¡${count} transacciones fueron importadas con éxito!`);
-    addToast({
-      type: 'success',
-      title: 'Importación Completada',
-      message: `Se importaron ${count} registros a tu espacio de trabajo.`,
-    });
   };
 
   const toggleSelectRow = (id: string) => {
