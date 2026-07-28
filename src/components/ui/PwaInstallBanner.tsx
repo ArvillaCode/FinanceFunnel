@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Smartphone, Download, X, Share, Sparkles, CheckCircle2 } from 'lucide-react';
 
 export const PwaInstallBanner: React.FC = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(
+    typeof window !== 'undefined' ? (window as any).deferredPwaPrompt : null
+  );
   const [isVisible, setIsVisible] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
 
@@ -22,19 +24,33 @@ export const PwaInstallBanner: React.FC = () => {
     const iosCheck = /iPhone|iPad|iPod/i.test(userAgent);
     setIsIOS(iosCheck);
 
-    // 2. Android / Chrome native WebAPK beforeinstallprompt listener
+    // Check if early capture already has prompt
+    if ((window as any).deferredPwaPrompt) {
+      setDeferredPrompt((window as any).deferredPwaPrompt);
+      setIsVisible(true);
+    }
+
+    // 2. Listen for custom event or beforeinstallprompt
+    const handlePromptReady = () => {
+      if ((window as any).deferredPwaPrompt) {
+        setDeferredPrompt((window as any).deferredPwaPrompt);
+        setIsVisible(true);
+      }
+    };
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
+      (window as any).deferredPwaPrompt = e;
       setDeferredPrompt(e);
-      // Auto-show popup if not in standalone mode
       setIsVisible(true);
     };
 
+    window.addEventListener('pwa-prompt-ready', handlePromptReady);
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // 3. Fallback for iOS Safari or mobile browsers where beforeinstallprompt isn't fired
+    // 3. Fallback for iOS Safari or mobile browsers
     const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
-    const isMobile = mobileRegex.test(userAgent) || (window.innerWidth <= 800);
+    const isMobile = mobileRegex.test(userAgent) || window.innerWidth <= 800;
 
     if (isMobile && !isStandalone) {
       const timer = setTimeout(() => {
@@ -44,24 +60,32 @@ export const PwaInstallBanner: React.FC = () => {
     }
 
     return () => {
+      window.removeEventListener('pwa-prompt-ready', handlePromptReady);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
 
   const handleInstall = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        localStorage.setItem('ff_pwa_installed', 'true');
-        setIsVisible(false);
+    const activePrompt = (window as any).deferredPwaPrompt || deferredPrompt;
+
+    if (activePrompt && typeof activePrompt.prompt === 'function') {
+      try {
+        await activePrompt.prompt();
+        const choiceResult = await activePrompt.userChoice;
+        if (choiceResult?.outcome === 'accepted') {
+          localStorage.setItem('ff_pwa_installed', 'true');
+          setIsVisible(false);
+        }
+      } catch (err) {
+        console.warn('Error ejecutando prompt de instalación PWA:', err);
       }
+      (window as any).deferredPwaPrompt = null;
       setDeferredPrompt(null);
     } else if (isIOS) {
-      // Guided step shown in modal UI below
+      // iOS Guided step displayed in card below
     } else {
-      // Fallback instruction for Android Chrome if prompt was consumed
-      alert('Para instalar la App Nativa:\n1. Toca los 3 puntos de tu navegador (⋮)\n2. Selecciona "Instalar aplicación" o "Agregar a la pantalla principal".');
+      // Direct browser fallback
+      setIsVisible(false);
     }
   };
 
@@ -107,7 +131,7 @@ export const PwaInstallBanner: React.FC = () => {
         <div className="space-y-2 bg-[#080C14] border border-[#94A3B8]/15 rounded-2xl p-3.5 text-xs text-[#94A3B8]">
           <div className="flex items-center gap-2 text-[#FFFFFF]">
             <CheckCircle2 className="w-4 h-4 text-[#00E5FF] shrink-0" />
-            <span>Pantalla completa sin barra del navegador</span>
+            <span>Pantalla completa nativa sin barra del navegador</span>
           </div>
           <div className="flex items-center gap-2 text-[#FFFFFF]">
             <CheckCircle2 className="w-4 h-4 text-[#00E5FF] shrink-0" />
