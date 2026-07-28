@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Smartphone, Download, X, Share, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Download, X, Share, Sparkles, CheckCircle2 } from 'lucide-react';
 
 export const PwaInstallBanner: React.FC = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(
-    typeof window !== 'undefined' ? (window as any).deferredPwaPrompt : null
-  );
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
 
@@ -13,28 +11,37 @@ export const PwaInstallBanner: React.FC = () => {
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true ||
-      document.referrer.includes('android-app://');
+      document.referrer.includes('android-app://') ||
+      localStorage.getItem('ff_pwa_installed') === 'true';
 
     if (isStandalone) {
       setIsVisible(false);
       return;
     }
 
+    // 2. Check if user dismissed the prompt in this session
+    const isDismissed = localStorage.getItem('ff_pwa_dismissed') === 'true';
+
     const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera || '';
-    const iosCheck = /iPhone|iPad|iPod/i.test(userAgent);
+    const iosCheck = /iPhone|iPad|iPod/i.test(userAgent) && !(window as any).MSStream;
     setIsIOS(iosCheck);
 
-    // Check if early capture already has prompt
+    // 3. Early check for captured beforeinstallprompt
     if ((window as any).deferredPwaPrompt) {
       setDeferredPrompt((window as any).deferredPwaPrompt);
-      setIsVisible(true);
+      if (!isDismissed) {
+        setIsVisible(true);
+      }
     }
 
-    // 2. Listen for custom event or beforeinstallprompt
+    // 4. Listen for prompt ready event from index.html script
     const handlePromptReady = () => {
-      if ((window as any).deferredPwaPrompt) {
-        setDeferredPrompt((window as any).deferredPwaPrompt);
-        setIsVisible(true);
+      const prompt = (window as any).deferredPwaPrompt;
+      if (prompt) {
+        setDeferredPrompt(prompt);
+        if (!isDismissed) {
+          setIsVisible(true);
+        }
       }
     };
 
@@ -42,20 +49,19 @@ export const PwaInstallBanner: React.FC = () => {
       e.preventDefault();
       (window as any).deferredPwaPrompt = e;
       setDeferredPrompt(e);
-      setIsVisible(true);
+      if (!isDismissed) {
+        setIsVisible(true);
+      }
     };
 
     window.addEventListener('pwa-prompt-ready', handlePromptReady);
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // 3. Fallback for iOS Safari or mobile browsers
-    const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
-    const isMobile = mobileRegex.test(userAgent) || window.innerWidth <= 800;
-
-    if (isMobile && !isStandalone) {
+    // 5. iOS Safari specific prompt (only if not dismissed)
+    if (iosCheck && !isStandalone && !isDismissed) {
       const timer = setTimeout(() => {
         setIsVisible(true);
-      }, 1000);
+      }, 1500);
       return () => clearTimeout(timer);
     }
 
@@ -74,22 +80,24 @@ export const PwaInstallBanner: React.FC = () => {
         const choiceResult = await activePrompt.userChoice;
         if (choiceResult?.outcome === 'accepted') {
           localStorage.setItem('ff_pwa_installed', 'true');
-          setIsVisible(false);
         }
       } catch (err) {
-        console.warn('Error ejecutando prompt de instalación PWA:', err);
+        console.warn('Error activando instalación PWA nativa:', err);
       }
       (window as any).deferredPwaPrompt = null;
       setDeferredPrompt(null);
+      setIsVisible(false);
     } else if (isIOS) {
-      // iOS Guided step displayed in card below
+      // User follows iOS guided steps shown in card
+      setIsVisible(false);
     } else {
-      // Direct browser fallback
+      // Dismiss gracefully if prompt was already consumed
       setIsVisible(false);
     }
   };
 
   const handleDismiss = () => {
+    localStorage.setItem('ff_pwa_dismissed', 'true');
     setIsVisible(false);
   };
 
