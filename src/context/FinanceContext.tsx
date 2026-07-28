@@ -6,6 +6,7 @@ import { useAuth } from './AuthContext';
 import { supabaseService } from '../lib/supabaseService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { tenantService } from '../lib/tenantService';
+import { persistenceService } from '../lib/persistenceService';
 
 export interface ToastMessage {
   id: string;
@@ -146,6 +147,24 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     return [];
   });
+
+  // Guardado continuo en IndexedDB + Respaldo en LocalStorage
+  useEffect(() => {
+    if (transactions.length > 0) {
+      persistenceService.saveTransactions(transactions);
+    }
+  }, [transactions]);
+
+  // Recuperación desde IndexedDB tras barridos de caché de navegador
+  useEffect(() => {
+    if (transactions.length === 0) {
+      persistenceService.loadTransactions().then((recovered) => {
+        if (recovered && recovered.length > 0) {
+          setTransactions(recovered);
+        }
+      });
+    }
+  }, []);
 
   // Fetch initial data from Supabase + Auto Sync Local Storage to Remote
   const loadRemoteData = async (userId: string) => {
