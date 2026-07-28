@@ -19,6 +19,7 @@ import { AuthScreen } from './components/auth/AuthScreen';
 import { LicenseGate } from './components/auth/LicenseGate';
 import { SuperAdminView } from './components/superadmin/SuperAdminView';
 import { ToastContainer } from './components/ui/Toast';
+import { PwaInstallBanner } from './components/ui/PwaInstallBanner';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { Transaction } from './types';
 import { Loader2, ShieldAlert } from 'lucide-react';
@@ -195,6 +196,7 @@ const MainLayout: React.FC = () => {
       />
 
       <ToastContainer />
+      <PwaInstallBanner />
     </div>
   );
 };

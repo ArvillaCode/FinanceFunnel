@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useFinance } from '../../context/FinanceContext';
 import { Transaction, TransactionType } from '../../types';
-import { DollarSign, Tag, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { DollarSign, Tag, ArrowDownCircle, ArrowUpCircle, Calendar } from 'lucide-react';
 
 interface TransactionFormModalProps {
   isOpen: boolean;
@@ -15,13 +15,14 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   onClose,
   transactionToEdit,
 }) => {
-  const { categories, addTransaction, updateTransaction, selectedMonth, selectedYear } = useFinance();
+  const { categories, addTransaction, updateTransaction } = useFinance();
+  const todayStr = new Date().toISOString().split('T')[0];
 
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [categoryId, setCategoryId] = useState<string>('');
-  const [date, setDate] = useState<string>('');
+  const [date, setDate] = useState<string>(todayStr);
   const [notes, setNotes] = useState<string>('');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -37,15 +38,11 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       setType('expense');
       setAmount('');
       setDescription('');
-      const today = new Date();
-      const yrStr = String(selectedYear);
-      const moStr = String(selectedMonth).padStart(2, '0');
-      const dayStr = String(today.getDate()).padStart(2, '0');
-      setDate(`${yrStr}-${moStr}-${dayStr}`);
+      setDate(todayStr);
       setNotes('');
     }
     setErrors({});
-  }, [transactionToEdit, isOpen, selectedMonth, selectedYear]);
+  }, [transactionToEdit, isOpen]);
 
   const availableCategories = categories.filter(
     (c) => c.type === 'both' || c.type === type
@@ -201,20 +198,44 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
             {errors.category && <p className="text-xs text-[#FFFFFF] font-bold mt-1">{errors.category}</p>}
           </div>
 
-          {/* Date */}
+          {/* Date Picker with Max Today Restriction */}
           <div>
             <label className="block text-xs font-semibold text-[#94A3B8] mb-1">
-              Fecha
+              Fecha de la Transacción
             </label>
-            <div className="relative">
+            <div
+              className="relative cursor-pointer"
+              onClick={(e) => {
+                const input = e.currentTarget.querySelector('input');
+                if (input && 'showPicker' in input) {
+                  try { input.showPicker(); } catch {}
+                }
+              }}
+            >
               <input
                 type="date"
+                max={todayStr}
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[#080C14] border border-[#94A3B8]/30 rounded-xl text-xs font-medium text-[#FFFFFF] focus:outline-none focus:border-[#00E5FF]"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val > todayStr) {
+                    setErrors((prev) => ({ ...prev, date: 'No se permiten fechas futuras' }));
+                    setDate(todayStr);
+                  } else {
+                    setErrors((prev) => {
+                      const copy = { ...prev };
+                      delete copy.date;
+                      return copy;
+                    });
+                    setDate(val);
+                  }
+                }}
+                className="w-full pl-9 pr-3 py-2.5 bg-[#080C14] border border-[#94A3B8]/30 rounded-xl text-xs font-medium text-[#FFFFFF] focus:outline-none focus:border-[#00E5FF] cursor-pointer"
               />
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#00E5FF] pointer-events-none" />
             </div>
-            {errors.date && <p className="text-xs text-[#FFFFFF] font-bold mt-1">{errors.date}</p>}
+            <p className="text-[10px] text-[#94A3B8] mt-1">Selecciona cualquier fecha pasada. Deshabilitadas fechas futuras.</p>
+            {errors.date && <p className="text-xs text-rose-400 font-bold mt-1">{errors.date}</p>}
           </div>
         </div>
 
