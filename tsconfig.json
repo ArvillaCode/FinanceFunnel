@@ -1,34 +1,55 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
+    "target": "ES2022",
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "module": "ESNext",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
     ],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@/*": [
+        "./src/*",
+        "./*"
+      ]
+    },
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
   "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "src"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/app",
+    "src/components/layout/sidebar.tsx",
+    "src/components/layout/header.tsx",
+    "src/components/layout/mobile-nav.tsx",
+    "src/components/layout/sidebar-content.tsx",
+    "src/components/dashboard/monthly-bar-chart.tsx",
+    "src/components/dashboard/recent-transactions.tsx",
+    "src/components/dashboard/dashboard-page.tsx",
+    "src/components/dashboard/stats-cards.tsx",
+    "src/components/dashboard/category-donut.tsx",
+    "src/components/dashboard/balance-line-chart.tsx",
+    "src/components/budgets/budget-form.tsx",
+    "src/components/categories/category-form.tsx",
+    "src/components/transactions/transaction-filters.tsx",
+    "src/components/transactions/transaction-form.tsx",
+    "src/components/transactions/transaction-list.tsx",
+    "src/hooks/use-dashboard.ts",
+    "src/hooks/use-budgets.ts",
+    "src/hooks/use-categories.ts",
+    "src/hooks/use-transactions.ts"
+  ]
 }

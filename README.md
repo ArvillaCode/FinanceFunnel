@@ -1,148 +1,111 @@
-# FinanceFunnel
+# 💰 Gestor de Finanzas Personales
 
-A modern, responsive personal finance management application built with Next.js, Supabase, and Tailwind CSS.
+Aplicación web moderna, responsive e intuitiva diseñada para el control total de gastos personales, ingresos, presupuestos y salud financiera.
 
-## Features
+---
 
-- **Dashboard** — Overview of your finances with charts (donut, bar, line), stats cards, and recent transactions
-- **Transactions** — Create, edit, delete income and expenses with filters, search, and sorting
-- **Categories** — Default categories included; create custom ones with icons and colors
-- **Budgets** — Set monthly spending limits per category with progress bars and warnings at 80%
-- **Authentication** — Register, login, password recovery via Supabase Auth
-- **Dark/Light mode** — Theme toggle with system preference support
-- **Responsive** — Sidebar on desktop, bottom navigation on mobile
+## 🚀 Características Principales
 
-## Tech Stack
+### 📊 Dashboard Financiero Interactivo
+- **Indicadores Clave (KPIs)**: Saldo disponible, Ingresos mensuales, Gastos mensuales, Categoría con mayor gasto y Porcentaje de presupuesto consumido.
+- **Comparativa respecto al mes anterior**: Indicadores dinámicos de variación en porcentaje (+/-%).
+- **Gráfico de Dona (Recharts)**: Distribución visual de gastos por categoría con leyenda interactiva.
+- **Gráfico de Barras**: Ingresos vs. Gastos mes a mes durante los últimos 6 meses.
+- **Gráfico de Evolución de Saldo**: Trayectoria del patrimonio neto acumulado.
+- **Acceso rápido**: Lista de últimas transacciones con acciones de edición y eliminación instantáneas.
 
-| Technology | Purpose |
-|---|---|
-| Next.js 16 (App Router) | React framework |
-| TypeScript | Type safety |
-| Tailwind CSS v4 | Styling |
-| shadcn/ui | UI components |
-| Supabase | Auth + PostgreSQL |
-| Recharts | Charts |
-| Motion (Framer Motion) | Animations |
-| React Hook Form + Zod | Forms + validation |
-| Lucide React | Icons |
-| date-fns | Date utilities |
-| Sonner | Toast notifications |
+### 💳 Transacciones y Movimientos
+- Registro de **Ingresos (+)** y **Gastos (-)**.
+- Formulario modal con selección de categoría, fecha, notas y monto.
+- Búsqueda en tiempo real por palabras clave en descripción o notas.
+- Filtros por tipo (Ingreso / Gasto), categoría, rango de fechas y rango de valores.
+- Ordenamiento dinámico por fecha o monto.
+- **Exportación a CSV**: Descarga en un clic de todas las transacciones filtradas.
 
-## Prerequisites
+### 🏷️ Categorías Personalizadas
+- Categorías predeterminadas listadas: **Vivienda, Alimentación, Transporte, Servicios, Entretenimiento, Salud, Educación, Deudas, Compras y Otros**.
+- Creación, edición y eliminación de categorías personalizadas con paleta de colores y catálogo de iconos.
 
-- Node.js 18+
-- npm
-- A Supabase project (free tier works)
+### 🎯 Presupuestos y Alertas
+- Presupuesto mensual general y límites individuales por categoría.
+- Barras de progreso animadas en tiempo real.
+- **Aviso preventivo al 80%** del límite asignado.
+- **Alerta roja de sobrecosto** al superar el 100%.
 
-## Setup
+### 🔐 Autenticación y Supabase
+- Registro, inicio de sesión y recuperación de contraseña.
+- Soporte para **Supabase (PostgreSQL con Row Level Security - RLS)** o **Modo Demo Persistent** inmediato sin necesidad de configuración previa.
+- Aislamiento estricto de datos por usuario (`auth.uid()`).
 
-### 1. Clone and install
+### 🎨 Diseño y UX
+- **Responsive**: Sidebar colapsable en escritorio y Bottom Navigation en móviles.
+- **Soporte de Monedas**: Selector para USD ($), EUR (€), MXN ($), COP ($), etc.
+- **Modo Claro y Oscuro**: Alternancia de tema persistente.
+- **Microinteracciones**: Animaciones suaves alimentadas por Motion.
+- **Notificaciones Toast y Modales de Confirmación**.
 
+---
+
+## 🛠️ Tecnologías Utilizadas
+
+- **Frontend**: React 19, TypeScript, Vite.
+- **Estilos**: Tailwind CSS.
+- **Gráficos**: Recharts.
+- **Animaciones**: Motion.
+- **Manejo de Fechas**: date-fns.
+- **Iconos**: Lucide Icons.
+- **Base de Datos / Backend**: Supabase (PostgreSQL) + RLS policies.
+
+---
+
+## ⚡ Instalación y Ejecución Local
+
+1. **Clonar el repositorio e instalar dependencias**:
 ```bash
-git clone <repo-url>
-cd FinanceFunnel
 npm install
 ```
 
-### 2. Supabase configuration
-
-Create a project at [supabase.com](https://supabase.com).
-
-Go to **Project Settings > API** and copy:
-- `Project URL`
-- `anon public key`
-
-### 3. Environment variables
-
-Copy `.env.example` to `.env.local`:
-
-```bash
-cp .env.example .env.local
-```
-
-Fill in your Supabase credentials:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-```
-
-### 4. Database setup
-
-1. Go to your Supabase **SQL Editor**
-2. Copy the contents of `supabase-schema.sql`
-3. Paste and run the SQL
-
-This creates all tables, indexes, triggers, and Row Level Security policies.
-
-### 5. Run the app
-
+2. **Ejecutar en modo desarrollo**:
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+La aplicación estará disponible en `http://localhost:3000`.
 
-### 6. Register and explore
+---
 
-1. Click **Sign up** and create an account
-2. Default categories are created automatically
-3. Start adding transactions and setting budgets
+## 🗄️ Configuración de Supabase (Opcional)
 
-## Project structure
+Si deseas conectar tu propio proyecto de Supabase:
 
-```
-src/
-├── app/
-│   ├── (auth)/             # Login, register, forgot password
-│   │   ├── login/page.tsx
-│   │   ├── register/page.tsx
-│   │   └── forgot-password/page.tsx
-│   ├── (dashboard)/        # Authenticated pages
-│   │   ├── page.tsx        # Dashboard homepage
-│   │   ├── transactions/page.tsx
-│   │   ├── categories/page.tsx
-│   │   ├── budgets/page.tsx
-│   │   └── settings/page.tsx
-│   ├── auth/callback/route.ts  # Auth callback handler
-│   ├── globals.css
-│   └── layout.tsx
-├── components/
-│   ├── ui/                 # shadcn/ui components
-│   ├── auth/               # Auth forms
-│   ├── dashboard/          # Dashboard widgets
-│   ├── transactions/       # Transaction CRUD components
-│   ├── categories/         # Category CRUD components
-│   ├── budgets/            # Budget CRUD components
-│   └── layout/             # Sidebar, header, mobile nav
-├── hooks/                  # Custom React hooks
-├── lib/
-│   ├── supabase/           # Server + browser Supabase clients
-│   ├── constants.ts        # Default categories, currencies, etc.
-│   ├── utils.ts            # cn(), formatCurrency(), etc.
-│   └── validations.ts      # Zod schemas
-├── providers/
-│   ├── auth-provider.tsx   # Auth context
-│   └── theme-provider.tsx  # Theme context
-├── types/
-│   └── index.ts            # TypeScript interfaces
-└── middleware.ts            # Route protection
+1. Crea un nuevo proyecto en [Supabase](https://supabase.com).
+2. Ve al **SQL Editor** en Supabase y ejecuta todo el código del archivo `supabase-schema.sql` incluido en la raíz de este proyecto.
+3. Copia tus credenciales en el archivo `.env` o configúralas directamente en la aplicación en **Configuración -> Conexión a Supabase**:
+```env
+VITE_SUPABASE_URL="https://tu-proyecto.supabase.co"
+VITE_SUPABASE_ANON_KEY="tu-anon-key"
 ```
 
-## Scripts
+---
 
-```bash
-npm run dev      # Start dev server
-npm run build    # Production build
-npm run start    # Start production server
-npm run lint     # Run ESLint
+## 📁 Estructura del Proyecto
+
 ```
-
-## RLS Policies
-
-All tables have Row Level Security enabled. Each user can only access their own data. Default categories are readable by all users but only editable by the system.
-
-## License
-
-MIT
+/
+├── supabase-schema.sql       # Esquema PostgreSQL completo + RLS + Triggers
+├── README.md                 # Documentación y guía de configuración
+├── .env.example              # Variables de entorno de ejemplo
+├── src/
+│   ├── components/           # Componentes modulares
+│   │   ├── auth/             # Modales de autenticación
+│   │   ├── budgets/          # Gestor de presupuestos y alertas
+│   │   ├── categories/       # Creador/Editor de categorías
+│   │   ├── dashboard/        # Widgets, tarjetas y gráficos
+│   │   ├── layout/           # Navbar, Sidebar y BottomNav
+│   │   ├── settings/         # Perfil y conexión Supabase
+│   │   ├── transactions/     # Lista, filtros, CSV y formulario modal
+│   │   └── ui/               # Componentes reutilizables (Toast, Modal, Confirm, Skeleton)
+│   ├── context/              # Contextos de Autenticación y Finanzas
+│   ├── lib/                  # Utilidades, constantes y cliente Supabase
+│   └── types/                # Interfaces TypeScript
+```

@@ -1,56 +1,35 @@
-import { z } from "zod";
-
-export const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-export const registerSchema = z.object({
-  fullName: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
-
-export const forgotPasswordSchema = z.object({
-  email: z.string().email("Invalid email address"),
-});
+import { z } from 'zod';
 
 export const transactionSchema = z.object({
-  type: z.enum(["income", "expense"]),
-  amount: z.coerce.number().positive("Amount must be positive"),
-  description: z.string().min(1, "Description is required"),
-  category_id: z.string().uuid("Category is required"),
-  transaction_date: z.string().min(1, "Date is required"),
+  amount: z
+    .number()
+    .positive('El monto debe ser mayor a 0'),
+  type: z.enum(['income', 'expense']),
+  description: z
+    .string()
+    .min(2, 'La descripción debe tener al menos 2 caracteres')
+    .max(100, 'La descripción no puede exceder 100 caracteres'),
+  category_id: z.string().min(1, 'Debes seleccionar una categoría'),
+  transaction_date: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: 'Fecha inválida',
+  }),
   notes: z.string().optional(),
 });
 
 export const categorySchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  icon: z.string().min(1, "Icon is required"),
-  color: z.string().min(1, "Color is required"),
-  type: z.enum(["income", "expense", "both"]),
+  name: z.string().min(2, 'El nombre de la categoría debe tener al menos 2 caracteres'),
+  icon: z.string().min(1, 'Selecciona un icono'),
+  color: z.string().min(1, 'Selecciona un color'),
+  type: z.enum(['income', 'expense', 'both']),
 });
 
 export const budgetSchema = z.object({
-  category_id: z.string().uuid("Category is required").nullable(),
-  amount: z.coerce.number().positive("Amount must be positive"),
-  month: z.coerce.number().min(1).max(12),
-  year: z.coerce.number().min(2000),
+  amount: z
+    .number()
+    .positive('El límite del presupuesto debe ser mayor a 0'),
+  category_id: z.string().nullable().optional(),
 });
 
-export const profileSchema = z.object({
-  full_name: z.string().min(2, "Name must be at least 2 characters"),
-  currency: z.string().min(1, "Currency is required"),
-});
-
-export type LoginFormData = z.infer<typeof loginSchema>;
-export type RegisterFormData = z.infer<typeof registerSchema>;
-export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
-export type TransactionFormData = z.infer<typeof transactionSchema>;
-export type CategoryFormData = z.infer<typeof categorySchema>;
-export type BudgetFormData = z.infer<typeof budgetSchema>;
-export type ProfileFormData = z.infer<typeof profileSchema>;
+export type TransactionInput = z.infer<typeof transactionSchema>;
+export type CategoryInput = z.infer<typeof categorySchema>;
+export type BudgetInput = z.infer<typeof budgetSchema>;
