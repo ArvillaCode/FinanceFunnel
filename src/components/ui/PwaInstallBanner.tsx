@@ -7,53 +7,39 @@ export const PwaInstallBanner: React.FC = () => {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    // 1. Strict check if already running in installed PWA standalone mode
+    // 1. Strict check if already running in standalone native PWA mode
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true ||
-      document.referrer.includes('android-app://') ||
-      localStorage.getItem('ff_pwa_installed') === 'true';
+      document.referrer.includes('android-app://');
 
     if (isStandalone) {
       setIsVisible(false);
       return;
     }
 
-    // 2. Check if device is mobile
     const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera || '';
-    const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
-    const isMobileDevice = mobileRegex.test(userAgent) || (window.innerWidth <= 768 && 'ontouchstart' in window);
-
     const iosCheck = /iPhone|iPad|iPod/i.test(userAgent);
     setIsIOS(iosCheck);
 
-    // 3. Check dismissal memory (Wait 3 days if user previously closed the prompt)
-    const lastDismissed = localStorage.getItem('ff_pwa_dismissed_time');
-    if (lastDismissed) {
-      const elapsed = Date.now() - parseInt(lastDismissed, 10);
-      const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
-      if (elapsed < threeDaysMs) {
-        setIsVisible(false);
-        return;
-      }
-    }
-
-    // 4. Android / Chrome beforeinstallprompt listener
+    // 2. Android / Chrome native WebAPK beforeinstallprompt listener
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      if (isMobileDevice) {
-        setIsVisible(true);
-      }
+      // Auto-show popup if not in standalone mode
+      setIsVisible(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // 5. iOS Safari fallback (Safari doesn't support beforeinstallprompt)
-    if (iosCheck && isMobileDevice && !isStandalone) {
+    // 3. Fallback for iOS Safari or mobile browsers where beforeinstallprompt isn't fired
+    const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+    const isMobile = mobileRegex.test(userAgent) || (window.innerWidth <= 800);
+
+    if (isMobile && !isStandalone) {
       const timer = setTimeout(() => {
         setIsVisible(true);
-      }, 1500);
+      }, 1000);
       return () => clearTimeout(timer);
     }
 
@@ -71,18 +57,22 @@ export const PwaInstallBanner: React.FC = () => {
         setIsVisible(false);
       }
       setDeferredPrompt(null);
+    } else if (isIOS) {
+      // Guided step shown in modal UI below
+    } else {
+      // Fallback instruction for Android Chrome if prompt was consumed
+      alert('Para instalar la App Nativa:\n1. Toca los 3 puntos de tu navegador (⋮)\n2. Selecciona "Instalar aplicación" o "Agregar a la pantalla principal".');
     }
   };
 
   const handleDismiss = () => {
-    localStorage.setItem('ff_pwa_dismissed_time', Date.now().toString());
     setIsVisible(false);
   };
 
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-[#080C14]/80 backdrop-blur-md animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-[#080C14]/85 backdrop-blur-md animate-fadeIn">
       <div className="w-full max-w-md bg-[#080C14] border border-[#00E5FF]/40 rounded-3xl p-6 shadow-2xl uf-glow space-y-5 animate-slideUp relative">
         {/* Close button */}
         <button
@@ -101,7 +91,7 @@ export const PwaInstallBanner: React.FC = () => {
           <div>
             <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-[#00E5FF] uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Experiencia Nativa Móvil</span>
+              <span>Aplicación Nativa Oficial</span>
             </div>
             <h3 className="text-base font-black text-[#FFFFFF] mt-0.5">
               Instalar FinanceFunnel
@@ -110,18 +100,18 @@ export const PwaInstallBanner: React.FC = () => {
         </div>
 
         <p className="text-xs text-[#94A3B8] leading-relaxed">
-          Accede a tu gestor financiero directamente desde tu pantalla de inicio sin barra de navegador, con mayor rapidez y soporte offline.
+          Instala la App nativa en tu dispositivo para ingresar sin la barra del navegador, con acceso más rápido y experiencia a pantalla completa.
         </p>
 
         {/* Features Checklist */}
         <div className="space-y-2 bg-[#080C14] border border-[#94A3B8]/15 rounded-2xl p-3.5 text-xs text-[#94A3B8]">
           <div className="flex items-center gap-2 text-[#FFFFFF]">
             <CheckCircle2 className="w-4 h-4 text-[#00E5FF] shrink-0" />
-            <span>Pantalla completa sin distracciones</span>
+            <span>Pantalla completa sin barra del navegador</span>
           </div>
           <div className="flex items-center gap-2 text-[#FFFFFF]">
             <CheckCircle2 className="w-4 h-4 text-[#00E5FF] shrink-0" />
-            <span>Funcionamiento ultrarrápido y offline</span>
+            <span>Rendimiento nativo y soporte offline</span>
           </div>
           <div className="flex items-center gap-2 text-[#FFFFFF]">
             <CheckCircle2 className="w-4 h-4 text-[#00E5FF] shrink-0" />
@@ -135,9 +125,9 @@ export const PwaInstallBanner: React.FC = () => {
             <p className="text-xs font-bold text-[#00E5FF] flex items-center gap-1.5">
               <Share className="w-4 h-4" /> Pasos para instalar en iPhone / iPad:
             </p>
-            <ol className="text-[11px] text-[#94A3B8] space-y-1 list-decimal list-inside pl-1">
-              <li>Toca el botón <span className="text-[#FFFFFF] font-bold">Compartir ⎘</span> en tu navegador Safari.</li>
-              <li>Desplázate y selecciona <span className="text-[#00E5FF] font-bold">"Agregar a inicio" ➕</span>.</li>
+            <ol className="text-[11px] text-[#94A3B8] space-y-1.5 list-decimal list-inside pl-1">
+              <li>Toca el botón <span className="text-[#FFFFFF] font-bold">Compartir ⎘</span> abajo en tu navegador Safari.</li>
+              <li>Desplázate en el menú y selecciona <span className="text-[#00E5FF] font-bold">"Agregar al inicio" ➕</span>.</li>
             </ol>
             <button
               onClick={handleDismiss}
