@@ -24,6 +24,15 @@ async function generateContentWithFallback(ai: GoogleGenAI, prompt: string): Pro
   return null;
 }
 
+function fmtMoney(amount: number, symbol: string = '$'): string {
+  if (isNaN(amount)) return `${symbol}0.00`;
+  const formatted = amount.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${symbol}${formatted}`;
+}
+
 export interface ContextualFinancialData {
   income: number;
   expenses: number;
@@ -103,19 +112,22 @@ Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estructura (sin for
 
   async generateExpressDiagnosis(data: ContextualFinancialData): Promise<string> {
     const apiKey = getApiKey();
+    const formattedIncome = fmtMoney(data.income, data.currencySymbol);
+    const formattedExpenses = fmtMoney(data.expenses, data.currencySymbol);
+    const formattedBalance = fmtMoney(data.balance, data.currencySymbol);
 
     if (apiKey) {
       try {
         const ai = new GoogleGenAI({ apiKey });
-        const prompt = `Actúa como un Asesor Financiero Senior de la plataforma Upfunnel. Genera un Diagnóstico Express conciso (máximo 3 párrafos breves) con emojis en formato Markdown.
+        const prompt = `Actúa como un Asesor Financiero Senior de la plataforma Upfunnel. Genera un Diagnóstico Express conciso (máximo 3 párrafos breves) con emojis en formato Markdown. Usar siempre formato monetario profesional con comas de miles (ej: $24,480.00).
 
 Datos Financieros Actuales:
-- Ingresos Totales: ${data.currencySymbol}${data.income.toFixed(2)}
-- Gastos Totales: ${data.currencySymbol}${data.expenses.toFixed(2)}
-- Balance Neto: ${data.currencySymbol}${data.balance.toFixed(2)}
+- Ingresos Totales: ${formattedIncome}
+- Gastos Totales: ${formattedExpenses}
+- Balance Neto: ${formattedBalance}
 - Tasa de Ahorro: ${data.savingsRatio}%
 - Transacciones Registradas: ${data.transactionCount}
-- Categorías Principales de Gasto: ${data.topCategories.map((c) => `${c.name} (${data.currencySymbol}${c.total.toFixed(2)} / ${c.percentage.toFixed(0)}%)`).join(', ')}
+- Categorías Principales de Gasto: ${data.topCategories.map((c) => `${c.name} (${fmtMoney(c.total, data.currencySymbol)} / ${c.percentage.toFixed(0)}%)`).join(', ')}
 
 Dame un diagnóstico de alto impacto resaltando fortalezas y la principal oportunidad de mejora.`;
 
@@ -140,16 +152,19 @@ Dame un diagnóstico de alto impacto resaltando fortalezas y la principal oportu
 
   async generateDetailedAudit(data: ContextualFinancialData): Promise<string> {
     const apiKey = getApiKey();
+    const formattedIncome = fmtMoney(data.income, data.currencySymbol);
+    const formattedExpenses = fmtMoney(data.expenses, data.currencySymbol);
+    const formattedBalance = fmtMoney(data.balance, data.currencySymbol);
 
     if (apiKey) {
       try {
         const ai = new GoogleGenAI({ apiKey });
-        const prompt = `Genera una Auditoría Financiera Profesional Completa de la cuenta Upfunnel.
+        const prompt = `Genera una Auditoría Financiera Profesional Completa de la cuenta Upfunnel. Usar siempre formato monetario profesional con comas de miles (ej: $24,480.00).
 
 Estadísticas del Usuario:
-- Ingresos: ${data.currencySymbol}${data.income.toFixed(2)}
-- Gastos: ${data.currencySymbol}${data.expenses.toFixed(2)}
-- Balance Neto: ${data.currencySymbol}${data.balance.toFixed(2)}
+- Ingresos: ${formattedIncome}
+- Gastos: ${formattedExpenses}
+- Balance Neto: ${formattedBalance}
 - Tasa de Retención: ${data.savingsRatio}%
 - Transacciones: ${data.transactionCount}
 - Top Categorías: ${JSON.stringify(data.topCategories)}
@@ -169,7 +184,7 @@ Estructura la respuesta en:
 
     // Smart Local Audit Generator
     const categoriesFormatted = data.topCategories
-      .map((c) => `- **${c.name}**: ${data.currencySymbol}${c.total.toFixed(2)} (${c.percentage.toFixed(0)}%)`)
+      .map((c) => `- **${c.name}**: ${fmtMoney(c.total, data.currencySymbol)} (${c.percentage.toFixed(0)}%)`)
       .join('\n');
 
     const isPositive = data.balance >= 0;
@@ -181,26 +196,29 @@ Procesaste **${data.transactionCount} transacciones**. Tasa de retención del ca
 ${categoriesFormatted ? categoriesFormatted : 'Registros equilibrados sin concentraciones críticas de riesgo.'}
 
 ### 🔮 Proyección Predictiva a 30 Días
-Si mantienes la tasa de gasto actual, el flujo neto proyectado para el próximo ciclo mensual será de aprox. **${data.currencySymbol}${(data.balance * 1.05).toFixed(2)}**.
+Si mantienes la tasa de gasto actual, el flujo neto proyectado para el próximo ciclo mensual será de aprox. **${fmtMoney(data.balance * 1.05, data.currencySymbol)}**.
 
 ### 🎯 Plan de Acción de 3 Pasos
 1. **Paso 1**: Limita gastos no esenciales en tu categoría principal a un máximo del 30% del presupuesto.
-2. **Paso 2**: Transfiere el excedente positivo de **${data.currencySymbol}${Math.max(0, data.balance).toFixed(2)}** a una cuenta de liquidez inmediata.
+2. **Paso 2**: Transfiere el excedente positivo de **${fmtMoney(Math.max(0, data.balance), data.currencySymbol)}** a una cuenta de liquidez inmediata.
 3. **Paso 3**: Revisa semanalmente el reporte en el DataCenter para mantener la trazabilidad.`;
   },
 
   async askFinancialQuestion(question: string, data: ContextualFinancialData): Promise<string> {
     const apiKey = getApiKey();
+    const formattedIncome = fmtMoney(data.income, data.currencySymbol);
+    const formattedExpenses = fmtMoney(data.expenses, data.currencySymbol);
+    const formattedBalance = fmtMoney(data.balance, data.currencySymbol);
 
     if (apiKey) {
       try {
         const ai = new GoogleGenAI({ apiKey });
-        const prompt = `Eres el Asistente Inteligente Financiero de Upfunnel Finance. Responde a la siguiente consulta del usuario con un tono profesional, empático y natural.
+        const prompt = `Eres el Asistente Inteligente Financiero de Upfunnel Finance. Responde a la siguiente consulta del usuario con un tono profesional, empático y natural. Usa SIEMPRE la puntuación monetaria estándar en dólares/monedas con comas de miles (ej: $24,480.00 o $15,310.00).
 
 Contexto Financiero Actual del Usuario:
-- Ingresos: ${data.currencySymbol}${data.income.toFixed(2)}
-- Gastos: ${data.currencySymbol}${data.expenses.toFixed(2)}
-- Balance Neto: ${data.currencySymbol}${data.balance.toFixed(2)}
+- Ingresos Totales: ${formattedIncome}
+- Gastos Totales: ${formattedExpenses}
+- Balance Neto: ${formattedBalance}
 - Tasa de Ahorro: ${data.savingsRatio}%
 - Principales Categorías: ${data.topCategories.map((c) => `${c.name} (${c.percentage.toFixed(0)}%)`).join(', ')}
 
@@ -220,7 +238,7 @@ Consulta del Usuario: "${question}"`;
     if (isGreeting) {
       return `¡Hola! 👋 Bienvenido a tu **Asistente Financiero Inteligente Upfunnel**.
 
-Actualmente registras **${data.currencySymbol}${data.income.toFixed(2)}** en ingresos y **${data.currencySymbol}${data.expenses.toFixed(2)}** en gastos, con un balance positivo de **${data.currencySymbol}${data.balance.toFixed(2)}** este mes.
+Actualmente registras **${formattedIncome}** en ingresos y **${formattedExpenses}** en gastos, con un balance positivo de **${formattedBalance}** este mes.
 
 ¿En qué puedo ayudarte hoy? Puedes preguntarme:
 - *¿En qué categoría estoy gastando más?*
@@ -235,24 +253,24 @@ Actualmente registras **${data.currencySymbol}${data.income.toFixed(2)}** en ing
       const topPct = top ? top.percentage.toFixed(0) : '0';
 
       return `### 📊 Categoría con Mayor Gasto
-Tu categoría con mayor nivel de gasto este mes es **${topName}**, acumulando **${data.currencySymbol}${topAmt.toFixed(2)}** (representando el **${topPct}%** de tus gastos totales).
+Tu categoría con mayor nivel de gasto este mes es **${topName}**, acumulando **${fmtMoney(topAmt, data.currencySymbol)}** (representando el **${topPct}%** de tus gastos totales).
 
 **Recomendaciones de Optimización**:
 - Revisa las transacciones registradas en **${topName}** para detectar consumos prescindibles.
 - Asigna un límite en el módulo de Presupuestos para esta categoría.
-- Tu balance acumulado disponible actual es de **${data.currencySymbol}${data.balance.toFixed(2)}**.`;
+- Tu balance acumulado disponible actual es de **${formattedBalance}**.`;
     }
 
     if (lower.includes('ahorro') || lower.includes('proyecc') || lower.includes('flujo')) {
       return `### 🔮 Análisis de Tasa de Ahorro y Proyección
-* **Tasa de Ahorro Actual**: **${data.savingsRatio}%** de tus ingresos totales (${data.currencySymbol}${data.income.toFixed(2)}).
-* **Saldo Neto Actual**: **${data.currencySymbol}${data.balance.toFixed(2)}**.
-* **Proyección a 30 Días**: Manteniendo la tasa actual, tu disponible proyectado al cierre del ciclo será de aprox. **${data.currencySymbol}${(data.balance * 1.05).toFixed(2)}**.`;
+* **Tasa de Ahorro Actual**: **${data.savingsRatio}%** de tus ingresos totales (${formattedIncome}).
+* **Saldo Neto Actual**: **${formattedBalance}**.
+* **Proyección a 30 Días**: Manteniendo la tasa actual, tu disponible proyectado al cierre del ciclo será de aprox. **${fmtMoney(data.balance * 1.05, data.currencySymbol)}**.`;
     }
 
     return `### 💡 Respuesta Asistida Upfunnel
-Analizando tus ingresos de **${data.currencySymbol}${data.income.toFixed(2)}** y gastos de **${data.currencySymbol}${data.expenses.toFixed(2)}** respecto a tu consulta **"${question}"**:
+Analizando tus ingresos de **${formattedIncome}** y gastos de **${formattedExpenses}** respecto a tu consulta **"${question}"**:
 
-Te sugerimos monitorear tus categorías principales (**${data.topCategories.slice(0, 2).map((c) => c.name).join(', ') || 'Generales'}**) para optimizar tu flujo mensual y mantener tu saldo en **${data.currencySymbol}${data.balance.toFixed(2)}**.`;
+Te sugerimos monitorear tus categorías principales (**${data.topCategories.slice(0, 2).map((c) => c.name).join(', ') || 'Generales'}**) para optimizar tu flujo mensual y mantener tu saldo en **${formattedBalance}**.`;
   },
 };
