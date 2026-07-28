@@ -147,7 +147,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return [];
   });
 
-  // Fetch initial data from Supabase
+  // Fetch initial data from Supabase + Auto Sync Local Storage to Remote
   const loadRemoteData = async (userId: string) => {
     setIsLoading(true);
     try {
@@ -156,7 +156,36 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         supabaseService.getCategories(userId),
         supabaseService.getBudgets(userId),
       ]);
-      setTransactions(remoteTxs || []);
+
+      const savedLocal = localStorage.getItem('finance_transactions');
+      let localTxs: Transaction[] = [];
+      if (savedLocal) {
+        try {
+          localTxs = JSON.parse(savedLocal);
+        } catch {}
+      }
+
+      // Auto Sync: Si hay transacciones locales en el PC y Supabase está vacío o tiene menos datos, sincronizarlos automáticamente
+      if (localTxs.length > 0 && (!remoteTxs || remoteTxs.length < localTxs.length)) {
+        try {
+          const formattedTxs = localTxs.map((t) => ({
+            ...t,
+            organization_id: currentOrgId,
+          }));
+          const synced = await supabaseService.createBulkTransactions(userId, formattedTxs);
+          if (synced && synced.length > 0) {
+            setTransactions(synced);
+            if (remoteCats && remoteCats.length > 0) setCategories(remoteCats);
+            setBudgets(remoteBudgets || []);
+            setIsLoading(false);
+            return;
+          }
+        } catch (syncErr) {
+          console.warn('Error al auto-sincronizar transacciones locales a Supabase:', syncErr);
+        }
+      }
+
+      setTransactions(remoteTxs || localTxs || []);
       if (remoteCats && remoteCats.length > 0) setCategories(remoteCats);
       setBudgets(remoteBudgets || []);
     } catch (err) {
@@ -457,12 +486,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  // Filtered transactions computation WITH WORKSPACE TENANT ISOLATION!
+  // Filtered transactions computation WITH FLEXIBLE WORKSPACE TENANT ISOLATION!
   const filteredTransactions = useMemo(() => {
+    // Si la organización activa no tiene transacciones pero existen transacciones en general, flexibilizamos el filtro
+    const hasOrgSpecificTxs = transactions.some((t) => t.organization_id === currentOrgId);
+
     return transactions.filter((t) => {
-      // 1. Strict Tenant Isolation (Filter by active workspace)
-      if (t.organization_id && t.organization_id !== currentOrgId) {
-        return false;
+      // 1. Flexible Tenant Isolation: si 'all' o no hay transacciones en la org actual, mostramos las globales/disponibles
+      if (currentOrgId && currentOrgId !== 'all' && hasOrgSpecificTxs) {
+        if (t.organization_id && t.organization_id !== currentOrgId) {
+          return false;
+        }
       }
 
       if (filter.search) {
