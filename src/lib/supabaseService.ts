@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { Transaction, Category, Budget, License, Profile, LicenseDuration, LicenseStatus, AuditLog } from '../types';
-import { generateLicenseKey, calculateLicenseExpiration } from './licenseUtils';
+import { generateLicenseKey } from './licenseUtils';
 
 export function ensureValidUuid(id: string): string {
   if (!id) return '00000000-0000-4000-a000-000000000000';
@@ -208,123 +208,48 @@ export const supabaseService = {
 
   // --- SAAS LICENSES (SUPERADMIN & USER) ---
   async getLicenses(): Promise<License[]> {
-    let remoteLicenses: License[] = [];
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('licenses')
-          .select('*')
-          .order('created_at', { ascending: false });
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from('licenses')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-        if (!error && data) {
-          remoteLicenses = data as License[];
-        }
-      } catch (err) {
-        console.warn('Error fetching remote licenses:', err);
-      }
-    }
-
-    const saved = localStorage.getItem('local_licenses');
-    const localLicenses: License[] = saved ? JSON.parse(saved) : [];
-
-    const combinedMap = new Map<string, License>();
-    localLicenses.forEach((l) => combinedMap.set(l.key_code, l));
-    remoteLicenses.forEach((l) => combinedMap.set(l.key_code, l));
-
-    return Array.from(combinedMap.values()).sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    if (error) throw new Error(`No se pudieron cargar las licencias: ${error.message}`);
+    return (data as License[]) || [];
   },
 
-  async createLicense(duration: LicenseDuration, adminUserId: string): Promise<License | null> {
-    const keyCode = generateLicenseKey();
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(adminUserId);
-
-    const fallbackLic: License = {
-      id: `lic-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      key_code: keyCode,
-      duration: duration,
-      status: 'unused',
-      created_by: isUuid ? adminUserId : undefined,
-      created_at: new Date().toISOString(),
-    };
-
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('licenses')
-          .insert([
-            {
-              key_code: keyCode,
-              duration: duration,
-              status: 'unused',
-              created_by: isUuid ? adminUserId : null,
-            },
-          ])
-          .select()
-          .single();
-
-        if (!error && data) {
-          // Also mirror in local for fallback
-          const saved = localStorage.getItem('local_licenses');
-          const localList: License[] = saved ? JSON.parse(saved) : [];
-          localStorage.setItem('local_licenses', JSON.stringify([data as License, ...localList]));
-          return data as License;
-        }
-      } catch (err) {
-        console.warn('Error al insertar en Supabase, usando respaldo local:', err);
-      }
+  async createLicense(duration: LicenseDuration, adminUserId: string): Promise<License> {
+    if (!supabase) {
+      throw new Error('Supabase no está configurado. La licencia no fue creada.');
     }
 
-    // Save to local storage for local demo/admin fallback
-    const saved = localStorage.getItem('local_licenses');
-    const localList: License[] = saved ? JSON.parse(saved) : [];
-    const updated = [fallbackLic, ...localList];
-    localStorage.setItem('local_licenses', JSON.stringify(updated));
+    const keyCode = generateLicenseKey();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(adminUserId);
+    if (!isUuid) throw new Error('Se requiere una sesión real de SuperAdmin para crear licencias.');
 
-    return fallbackLic;
+    const { data, error } = await supabase
+      .from('licenses')
+      .insert([{ key_code: keyCode, duration, status: 'unused', created_by: adminUserId }])
+      .select()
+      .single();
+
+    if (error || !data) {
+      throw new Error(`La licencia no se guardó en Supabase: ${error?.message || 'respuesta vacía'}`);
+    }
+    return data as License;
   },
 
   async updateLicenseStatus(id: string, status: LicenseStatus): Promise<boolean> {
-    // Local storage update
-    const saved = localStorage.getItem('local_licenses');
-    if (saved) {
-      try {
-        const localList: License[] = JSON.parse(saved);
-        const updated = localList.map((l) => (l.id === id ? { ...l, status } : l));
-        localStorage.setItem('local_licenses', JSON.stringify(updated));
-      } catch {}
-    }
-
-    if (supabase) {
-      try {
-        await supabase.from('licenses').update({ status }).eq('id', id);
-      } catch (err) {
-        console.warn('Error al actualizar estado en Supabase:', err);
-      }
-    }
-
+    if (!supabase) throw new Error('Supabase no está configurado.');
+    const { error } = await supabase.from('licenses').update({ status }).eq('id', id);
+    if (error) throw new Error(`No se pudo actualizar la licencia: ${error.message}`);
     return true;
   },
 
   async deleteLicense(id: string): Promise<boolean> {
-    const saved = localStorage.getItem('local_licenses');
-    if (saved) {
-      try {
-        const localList: License[] = JSON.parse(saved);
-        const updated = localList.filter((l) => l.id !== id);
-        localStorage.setItem('local_licenses', JSON.stringify(updated));
-      } catch {}
-    }
-
-    if (supabase) {
-      try {
-        await supabase.from('licenses').delete().eq('id', id);
-      } catch (err) {
-        console.warn('Error al eliminar en Supabase:', err);
-      }
-    }
-
+    if (!supabase) throw new Error('Supabase no está configurado.');
+    const { error } = await supabase.from('licenses').delete().eq('id', id);
+    if (error) throw new Error(`No se pudo eliminar la licencia: ${error.message}`);
     return true;
   },
 
@@ -364,92 +289,32 @@ export const supabaseService = {
     return null;
   },
 
-  async activateLicenseForKey(userId: string, keyCode: string): Promise<{ success: boolean; message: string; license?: License }> {
+  async activateLicenseForKey(userId: string, keyCode: string, userEmail?: string): Promise<{ success: boolean; message: string; license?: License }> {
     const cleanKey = keyCode.trim().toUpperCase();
-
-    // 1. Search in local licenses first
-    const saved = localStorage.getItem('local_licenses');
-    let localLic: License | null = null;
-    let localList: License[] = [];
-
-    if (saved) {
-      try {
-        localList = JSON.parse(saved);
-        localLic = localList.find((l) => l.key_code === cleanKey) || null;
-      } catch {}
+    if (!supabase) {
+      return { success: false, message: 'No hay conexión con el servidor de licencias.' };
+    }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+      return { success: false, message: 'Debes iniciar una sesión válida antes de activar la licencia.' };
     }
 
-    // 2. Search in Supabase if not found locally
-    let remoteLic: License | null = null;
-    if (supabase && !localLic) {
-      try {
-        const { data } = await supabase
-          .from('licenses')
-          .select('*')
-          .eq('key_code', cleanKey)
-          .maybeSingle();
-        if (data) remoteLic = data as License;
-      } catch {}
+    const { data, error } = await supabase.rpc('activate_license', {
+      license_key: cleanKey,
+      activating_email: userEmail || null,
+    });
+
+    if (error) {
+      const knownMessage = error.message.replace(/^.*ACTIVATION_ERROR:\s*/, '');
+      return { success: false, message: knownMessage || 'No fue posible validar la licencia.' };
     }
 
-    const targetLicense = localLic || remoteLic;
-
-    if (!targetLicense) {
-      return { success: false, message: 'La clave de licencia ingresada no existe.' };
+    const activatedLicense = (Array.isArray(data) ? data[0] : data) as License | undefined;
+    if (!activatedLicense) {
+      return { success: false, message: 'El servidor no devolvió la licencia activada.' };
     }
 
-    if (targetLicense.status === 'revoked') {
-      return { success: false, message: 'Esta licencia ha sido revocada permanentemente por el administrador.' };
-    }
-
-    if (targetLicense.status === 'paused') {
-      return { success: false, message: 'Esta licencia se encuentra pausada temporalmente por el administrador.' };
-    }
-
-    if (targetLicense.status === 'expired') {
-      return { success: false, message: 'Esta licencia ha expirado. Por favor solicita una nueva.' };
-    }
-
-    const activatedAt = new Date().toISOString();
-    const expiresAt = calculateLicenseExpiration(targetLicense.duration as LicenseDuration, new Date());
-
-    const activatedLicense: License = {
-      ...targetLicense,
-      status: 'active',
-      user_email: 'usuario@upfunnel.com',
-      activated_at: activatedAt,
-      expires_at: expiresAt,
-    };
-
-    // Update in local storage
-    const updatedLocal = localList.map((l) => (l.key_code === cleanKey ? activatedLicense : l));
-    if (!localLic) updatedLocal.unshift(activatedLicense);
-    localStorage.setItem('local_licenses', JSON.stringify(updatedLocal));
     localStorage.setItem(`user_active_license_${userId}`, JSON.stringify(activatedLicense));
-
-    // Update in Supabase
-    if (supabase) {
-      try {
-        await supabase
-          .from('licenses')
-          .update({ status: 'active', activated_at: activatedAt, expires_at: expiresAt })
-          .eq('id', targetLicense.id);
-
-        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
-          await supabase
-            .from('user_licenses')
-            .upsert([{ user_id: userId, license_id: targetLicense.id }], { onConflict: 'user_id,license_id' });
-        }
-      } catch (err) {
-        console.warn('Error actualizando activación en Supabase:', err);
-      }
-    }
-
-    return {
-      success: true,
-      message: '¡Licencia activada con éxito!',
-      license: activatedLicense,
-    };
+    return { success: true, message: '¡Licencia activada con éxito!', license: activatedLicense };
   },
 
   // --- PROFILES / PROMOTION (SUPERADMIN) ---

@@ -1,9 +1,12 @@
-const CACHE_NAME = 'financefunnel-v1.0';
+const CACHE_NAME = 'financefunnel-v1.1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/favicon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable.png',
 ];
 
 // Install Event - Pre-cache essential core assets

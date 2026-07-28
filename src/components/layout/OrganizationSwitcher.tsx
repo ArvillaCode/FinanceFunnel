@@ -3,12 +3,14 @@ import { tenantService } from '../../lib/tenantService';
 import { Organization } from '../../types';
 import { Building2, ChevronDown, Plus, Check, Briefcase } from 'lucide-react';
 import { Modal } from '../ui/Modal';
+import { useAuth } from '../../context/AuthContext';
 
 interface OrganizationSwitcherProps {
   onOrgChange?: (org: Organization) => void;
 }
 
 export const OrganizationSwitcher: React.FC<OrganizationSwitcherProps> = ({ onOrgChange }) => {
+  const { user } = useAuth();
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -33,7 +35,12 @@ export const OrganizationSwitcher: React.FC<OrganizationSwitcherProps> = ({ onOr
   const handleCreateOrg = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newOrgName.trim()) return;
-    const created = tenantService.createOrganization(newOrgName.trim(), 'superadmin-gabriel-id');
+    const created = tenantService.createOrganization(
+      newOrgName.trim(),
+      user?.id || `user-${Date.now()}`,
+      user?.full_name,
+      user?.email
+    );
     setOrgs(tenantService.getOrganizations());
     setCurrentOrg(created);
     setIsModalOpen(false);

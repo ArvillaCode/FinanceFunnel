@@ -4,18 +4,45 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#080C14" />
-    <title>Upfunnel Finance • Gestor Financiero Inteligente</title>
 
-    <!-- Favicon -->
+    <!-- Immediate Service Worker & PWA Capture Script -->
+    <script>
+      window.deferredPwaPrompt = null;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.deferredPwaPrompt = e;
+        window.dispatchEvent(new Event('pwa-prompt-ready'));
+      });
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(function(err) {
+          console.warn('SW error:', err);
+        });
+      }
+    </script>
+
+    <!-- PWA Web Manifest & Service Worker Meta -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FinanceFunnel" />
+    <meta name="application-name" content="FinanceFunnel" />
+    <meta name="msapplication-TileColor" content="#080C14" />
+
+    <title>FinanceFunnel • Gestor Financiero Inteligente</title>
+
+    <!-- Favicon & Touch Icons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="alternate icon" type="image/png" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="mask-icon" href="/favicon.svg" color="#00E5FF" />
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-BjfxmMhe.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DIKy62Ra.css">
+    <script type="module" crossorigin src="/assets/index-CO-KvsIY.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DraP7cWe.css">
   </head>
   <body class="bg-[#080C14] text-[#FFFFFF] font-['Inter'] antialiased overflow-x-hidden w-full max-w-full">
     <div id="root" class="w-full max-w-full overflow-x-hidden min-h-screen"></div>

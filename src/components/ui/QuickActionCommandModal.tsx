@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, LayoutDashboard, ArrowRightLeft, PieChart, Tags, Settings, Users, CreditCard, PlusCircle, Moon, Sun, Bot, KeyRound } from 'lucide-react';
+import { Search, LayoutDashboard, ArrowRightLeft, PieChart, Tags, Settings, Users, CreditCard, PlusCircle, Moon, Sun, Bot, KeyRound, Smartphone } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useFinance } from '../../context/FinanceContext';
 
@@ -47,6 +47,7 @@ export const QuickActionCommandModal: React.FC<QuickActionCommandModalProps> = (
     { id: 'billing', label: 'Ver Planes y Suscripción SaaS', icon: CreditCard, action: () => { onNavigate('billing'); onClose(); } },
     { id: 'datacenter', label: 'Centro de Datos (Exportar / Importar CSV)', icon: ArrowRightLeft, action: () => { onNavigate('datacenter'); onClose(); } },
     { id: 'settings', label: 'Perfil y Configuración de IA Gemini', icon: Settings, action: () => { onNavigate('settings'); onClose(); } },
+    { id: 'install-pwa', label: 'Instalar Aplicación Nativa PWA', icon: Smartphone, action: () => { window.dispatchEvent(new Event('open-pwa-banner')); onClose(); } },
     { id: 'toggle-theme', label: `Cambiar a Modo ${theme === 'dark' ? 'Claro' : 'Oscuro'}`, icon: theme === 'dark' ? Sun : Moon, action: () => { toggleTheme(); onClose(); } },
   ];
 

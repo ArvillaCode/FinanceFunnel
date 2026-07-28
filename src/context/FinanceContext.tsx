@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import { Transaction, Category, Budget, CurrencyCode, TransactionFilter } from '../types';
 import { DEFAULT_CATEGORIES } from '../lib/constants';
 import { getCurrentYearMonth } from '../lib/utils';
@@ -76,6 +76,8 @@ const INITIAL_FILTER: TransactionFilter = {
 
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const activeUserIdRef = useRef(user?.id);
+  activeUserIdRef.current = user?.id;
   const currentYM = getCurrentYearMonth();
 
   const [selectedMonth, setSelectedMonth] = useState<number>(currentYM.month);
@@ -124,57 +126,25 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setCurrencyState(curr);
   };
 
-  // State: Transactions (Initial Seed if Empty)
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('finance_transactions');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch {}
-    }
-    return generateSeedData().transactions;
-  });
-
-  const [categories, setCategories] = useState<Category[]>(() => {
-    const saved = localStorage.getItem('finance_categories');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch {}
-    }
-    return DEFAULT_CATEGORIES;
-  });
-
-  const [budgets, setBudgets] = useState<Budget[]>(() => {
-    const saved = localStorage.getItem('finance_budgets');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch {}
-    }
-    return generateSeedData().budgets;
-  });
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
 
   // Guardado continuo en IndexedDB + Respaldo en LocalStorage
   useEffect(() => {
-    if (transactions.length > 0) {
-      persistenceService.saveTransactions(transactions);
-    }
-  }, [transactions]);
+    if (user && hydratedUserId === user.id) persistenceService.saveTransactions(user.id, transactions);
+  }, [transactions, user?.id, hydratedUserId]);
 
-  // Recuperación desde IndexedDB tras barridos de caché de navegador
   useEffect(() => {
-    if (transactions.length === 0) {
-      persistenceService.loadTransactions().then((recovered) => {
-        if (recovered && recovered.length > 0) {
-          setTransactions(recovered);
-        }
-      });
-    }
-  }, []);
+    if (!user || hydratedUserId !== user.id) return;
+    persistenceService.saveCategories(user.id, categories);
+  }, [categories, user?.id, hydratedUserId]);
+
+  useEffect(() => {
+    if (!user || hydratedUserId !== user.id) return;
+    persistenceService.saveBudgets(user.id, budgets);
+  }, [budgets, user?.id, hydratedUserId]);
 
   // Fetch initial data from Supabase + Auto Sync Local Storage to Remote
   const loadRemoteData = async (userId: string) => {
@@ -186,46 +156,31 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         supabaseService.getBudgets(userId),
       ]);
 
-      const savedLocal = localStorage.getItem('finance_transactions');
-      let localTxs: Transaction[] = [];
-      if (savedLocal) {
-        try {
-          localTxs = JSON.parse(savedLocal);
-        } catch {}
-      }
+      if (activeUserIdRef.current !== userId) return;
 
-      // Auto Sync: Si hay transacciones locales en el PC y Supabase está vacío o tiene menos datos, sincronizarlos automáticamente
-      if (localTxs.length > 0 && (!remoteTxs || remoteTxs.length < localTxs.length)) {
-        try {
-          const formattedTxs = localTxs.map((t) => ({
-            ...t,
-            organization_id: currentOrgId,
-          }));
-          const synced = await supabaseService.createBulkTransactions(userId, formattedTxs);
-          if (synced && synced.length > 0) {
-            setTransactions(synced);
-            if (remoteCats && remoteCats.length > 0) setCategories(remoteCats);
-            setBudgets(remoteBudgets || []);
-            setIsLoading(false);
-            return;
-          }
-        } catch (syncErr) {
-          console.warn('Error al auto-sincronizar transacciones locales a Supabase:', syncErr);
-        }
-      }
-
-      setTransactions(remoteTxs || localTxs || []);
-      if (remoteCats && remoteCats.length > 0) setCategories(remoteCats);
+      setTransactions(remoteTxs || []);
+      setCategories(remoteCats && remoteCats.length > 0 ? remoteCats : DEFAULT_CATEGORIES);
       setBudgets(remoteBudgets || []);
+      setHydratedUserId(userId);
     } catch (err) {
       console.error('Error al obtener datos de Supabase:', err);
     } finally {
-      setIsLoading(false);
+      if (activeUserIdRef.current === userId) setIsLoading(false);
     }
   };
 
   // Load user data & Subscribe to Realtime Updates + Mobile Focus Reconnect!
   useEffect(() => {
+    let cancelled = false;
+    setTransactions([]);
+    setCategories(DEFAULT_CATEGORIES);
+    setBudgets([]);
+    setHydratedUserId(null);
+
+    if (user) {
+      setCurrentOrgIdState(tenantService.getCurrentOrgId());
+    }
+
     if (user && isSupabaseConfigured) {
       loadRemoteData(user.id);
 
@@ -234,9 +189,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         supabaseService.getTransactions(user.id).then((txs) => setTransactions(txs || []));
       };
       window.addEventListener('focus', handleFocus);
-      document.addEventListener('visibilitychange', () => {
+      const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') handleFocus();
-      });
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
 
       // Regular polling fallback every 5 seconds for instant cross-device sync
       const pollInterval = setInterval(() => {
@@ -277,6 +233,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         return () => {
           window.removeEventListener('focus', handleFocus);
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
           clearInterval(pollInterval);
           supabase.removeChannel(channel);
         };
@@ -284,12 +241,27 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       return () => {
         window.removeEventListener('focus', handleFocus);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
         clearInterval(pollInterval);
       };
-    } else if (!user) {
-      setTransactions([]);
-      setBudgets([]);
+    } else if (user) {
+      const seed = generateSeedData();
+      Promise.all([
+        persistenceService.loadTransactions(user.id),
+        Promise.resolve(persistenceService.loadCategories(user.id)),
+        Promise.resolve(persistenceService.loadBudgets(user.id)),
+      ]).then(([savedTransactions, savedCategories, savedBudgets]) => {
+        if (cancelled) return;
+        setTransactions(savedTransactions.length > 0 ? savedTransactions : seed.transactions);
+        setCategories(savedCategories.length > 0 ? savedCategories : DEFAULT_CATEGORIES);
+        setBudgets(savedBudgets.length > 0 ? savedBudgets : seed.budgets);
+        setHydratedUserId(user.id);
+      });
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id]);
 
   // Filter state
@@ -506,8 +478,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const resetDemoData = () => {
     setTransactions([]);
     setBudgets([]);
-    localStorage.removeItem('finance_transactions');
-    localStorage.removeItem('finance_budgets');
+    if (user) persistenceService.clearUserData(user.id);
     addToast({
       type: 'info',
       title: 'Plataforma limpia',

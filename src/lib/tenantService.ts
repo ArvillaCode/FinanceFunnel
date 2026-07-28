@@ -5,7 +5,7 @@ const STORAGE_MEMBERS_KEY = 'finance_org_members';
 const STORAGE_INVITES_KEY = 'finance_org_invitations';
 const STORAGE_CURRENT_ORG_KEY = 'finance_current_org_id';
 
-const DEFAULT_ORGS: Organization[] = [
+const DEMO_ORGS: Organization[] = [
   {
     id: 'org-personal',
     name: 'Finanzas Personales',
@@ -26,7 +26,7 @@ const DEFAULT_ORGS: Organization[] = [
   },
 ];
 
-const DEFAULT_MEMBERS: OrganizationMember[] = [
+const DEMO_MEMBERS: OrganizationMember[] = [
   {
     id: 'm-1',
     organization_id: 'org-personal',
@@ -66,33 +66,107 @@ const DEFAULT_MEMBERS: OrganizationMember[] = [
 ];
 
 export const tenantService = {
-  getOrganizations(): Organization[] {
-    if (typeof window === 'undefined') return DEFAULT_ORGS;
-    const saved = localStorage.getItem(STORAGE_ORGS_KEY);
-    if (!saved) {
-      localStorage.setItem(STORAGE_ORGS_KEY, JSON.stringify(DEFAULT_ORGS));
-      return DEFAULT_ORGS;
+  initializeUserTenant(user: { id: string; email: string; full_name?: string }, isDemo: boolean = false): void {
+    if (typeof localStorage === 'undefined') return;
+
+    const email = (user.email || '').trim().toLowerCase();
+    const isSuper = email === 'gabriel.au2023@gmail.com';
+
+    if (isDemo || isSuper) {
+      const savedOrgs = localStorage.getItem(STORAGE_ORGS_KEY);
+      if (!savedOrgs) {
+        localStorage.setItem(STORAGE_ORGS_KEY, JSON.stringify(DEMO_ORGS));
+        localStorage.setItem(STORAGE_MEMBERS_KEY, JSON.stringify(DEMO_MEMBERS));
+        localStorage.setItem(STORAGE_CURRENT_ORG_KEY, DEMO_ORGS[0].id);
+      }
+      return;
     }
+
+    // For new/regular users: check and purge any lingering demo/superadmin data
+    const savedOrgs = localStorage.getItem(STORAGE_ORGS_KEY);
+    const savedMembers = localStorage.getItem(STORAGE_MEMBERS_KEY);
+
+    let orgs: Organization[] = [];
+    let members: OrganizationMember[] = [];
+
+    try {
+      if (savedOrgs) orgs = JSON.parse(savedOrgs);
+      if (savedMembers) members = JSON.parse(savedMembers);
+    } catch {
+      orgs = [];
+      members = [];
+    }
+
+    // Filter out Gabriel's demo orgs and demo members for regular users
+    const userOrgs = orgs.filter((o) => o.owner_id === user.id || o.id === `org-${user.id}`);
+    const userMembers = members.filter((m) => m.email === email || userOrgs.some((o) => o.id === m.organization_id));
+
+    if (userOrgs.length === 0) {
+      const newOrgId = `org-${user.id}`;
+      const nameOwner = user.full_name || email.split('@')[0] || 'Mi Espacio';
+      const userOrg: Organization = {
+        id: newOrgId,
+        name: `Finanzas de ${nameOwner}`,
+        slug: `finanzas-${user.id.slice(0, 8)}`,
+        owner_id: user.id,
+        plan_tier: 'starter',
+        member_count: 1,
+        created_at: new Date().toISOString(),
+      };
+
+      const userMember: OrganizationMember = {
+        id: `m-${user.id}`,
+        organization_id: newOrgId,
+        user_id: user.id,
+        full_name: nameOwner,
+        email: user.email,
+        role: 'owner',
+        joined_at: new Date().toISOString(),
+      };
+
+      localStorage.setItem(STORAGE_ORGS_KEY, JSON.stringify([userOrg]));
+      localStorage.setItem(STORAGE_MEMBERS_KEY, JSON.stringify([userMember]));
+      localStorage.setItem(STORAGE_CURRENT_ORG_KEY, newOrgId);
+      localStorage.removeItem(STORAGE_INVITES_KEY);
+    } else {
+      localStorage.setItem(STORAGE_ORGS_KEY, JSON.stringify(userOrgs));
+      localStorage.setItem(STORAGE_MEMBERS_KEY, JSON.stringify(userMembers));
+      const activeId = localStorage.getItem(STORAGE_CURRENT_ORG_KEY);
+      if (!activeId || !userOrgs.some((o) => o.id === activeId)) {
+        localStorage.setItem(STORAGE_CURRENT_ORG_KEY, userOrgs[0].id);
+      }
+    }
+  },
+
+  getOrganizations(): Organization[] {
+    if (typeof localStorage === 'undefined') return [];
+    const saved = localStorage.getItem(STORAGE_ORGS_KEY);
+    if (!saved) return [];
     try {
       return JSON.parse(saved);
     } catch {
-      return DEFAULT_ORGS;
+      return [];
     }
   },
 
   getCurrentOrgId(): string {
-    if (typeof window === 'undefined') return DEFAULT_ORGS[0].id;
+    if (typeof localStorage === 'undefined') return '';
+    const orgs = this.getOrganizations();
+    if (orgs.length === 0) return '';
     const saved = localStorage.getItem(STORAGE_CURRENT_ORG_KEY);
-    return saved || DEFAULT_ORGS[0].id;
+    if (saved && orgs.some((o) => o.id === saved)) return saved;
+    const firstId = orgs[0].id;
+    this.setCurrentOrgId(firstId);
+    return firstId;
   },
 
   setCurrentOrgId(orgId: string): void {
-    if (typeof window !== 'undefined') {
+    if (typeof localStorage !== 'undefined') {
       localStorage.setItem(STORAGE_CURRENT_ORG_KEY, orgId);
     }
   },
 
-  createOrganization(name: string, ownerUserId: string): Organization {
+  createOrganization(name: string, ownerUserId: string, ownerName?: string, ownerEmail?: string): Organization {
     const orgs = this.getOrganizations();
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const newOrg: Organization = {
@@ -109,14 +183,12 @@ export const tenantService = {
     localStorage.setItem(STORAGE_ORGS_KEY, JSON.stringify(updatedOrgs));
     this.setCurrentOrgId(newOrg.id);
 
-    // Add owner member
-    const members = this.getMembers(newOrg.id);
     const ownerMember: OrganizationMember = {
       id: `m-${Date.now()}`,
       organization_id: newOrg.id,
       user_id: ownerUserId,
-      full_name: 'Propietario de Espacio',
-      email: 'owner@upfunnel.com',
+      full_name: ownerName || 'Propietario de Espacio',
+      email: ownerEmail || 'propietario@empresa.com',
       role: 'owner',
       joined_at: new Date().toISOString(),
     };
@@ -127,16 +199,13 @@ export const tenantService = {
   },
 
   getAllMembers(): OrganizationMember[] {
-    if (typeof window === 'undefined') return DEFAULT_MEMBERS;
+    if (typeof localStorage === 'undefined') return [];
     const saved = localStorage.getItem(STORAGE_MEMBERS_KEY);
-    if (!saved) {
-      localStorage.setItem(STORAGE_MEMBERS_KEY, JSON.stringify(DEFAULT_MEMBERS));
-      return DEFAULT_MEMBERS;
-    }
+    if (!saved) return [];
     try {
       return JSON.parse(saved);
     } catch {
-      return DEFAULT_MEMBERS;
+      return [];
     }
   },
 
@@ -167,7 +236,7 @@ export const tenantService = {
   },
 
   getAllInvitations(): Invitation[] {
-    if (typeof window === 'undefined') return [];
+    if (typeof localStorage === 'undefined') return [];
     const saved = localStorage.getItem(STORAGE_INVITES_KEY);
     if (!saved) return [];
     try {

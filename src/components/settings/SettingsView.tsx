@@ -10,6 +10,9 @@ import {
   Sun,
   Moon,
   Camera,
+  Smartphone,
+  Download,
+  Sparkles,
 } from 'lucide-react';
 
 const PRESET_AVATARS = [
@@ -32,6 +35,10 @@ export const SettingsView: React.FC = () => {
   const [customUrlInput, setCustomUrlInput] = useState('');
   const [savedMsg, setSavedMsg] = useState('');
 
+  const isStandalonePwa =
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true);
+
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
     updateProfile({
@@ -51,6 +58,10 @@ export const SettingsView: React.FC = () => {
       setAvatarUrl(customUrlInput.trim());
       setCustomUrlInput('');
     }
+  };
+
+  const handleOpenPwaModal = () => {
+    window.dispatchEvent(new Event('open-pwa-banner'));
   };
 
   return (
@@ -171,8 +182,8 @@ export const SettingsView: React.FC = () => {
           </form>
         </div>
 
-        {/* Currency & Visual Preferences */}
-        <div className="p-6 rounded-2xl bg-[#080C14] border border-[#94A3B8]/20 shadow-sm space-y-4">
+        {/* Currency, Visual Preferences & PWA App Card */}
+        <div className="p-6 rounded-2xl bg-[#080C14] border border-[#94A3B8]/20 shadow-sm space-y-5">
           <div className="flex items-center gap-2 text-[#00E5FF] font-bold text-sm">
             <CreditCard className="w-4 h-4" />
             <span>Preferencias Visuales y Moneda</span>
@@ -219,6 +230,38 @@ export const SettingsView: React.FC = () => {
                   <Moon className="w-4 h-4 text-[#00E5FF]" /> Modo Oscuro
                 </>
               )}
+            </button>
+          </div>
+
+          {/* PWA & Native App Card */}
+          <div className="p-4 rounded-xl bg-[#080C14] border border-[#00E5FF]/30 space-y-3 uf-glow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-[#00E5FF]" />
+                <span className="text-xs font-bold text-[#FFFFFF]">Aplicación Nativa PWA</span>
+              </div>
+              {isStandalonePwa ? (
+                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40">
+                  ✓ APP INSTALADA
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[#94A3B8]/10 text-[#94A3B8] border border-[#94A3B8]/20">
+                  MODO NAVEGADOR
+                </span>
+              )}
+            </div>
+
+            <p className="text-[11px] text-[#94A3B8] leading-relaxed">
+              Instala FinanceFunnel como aplicación nativa en tu dispositivo para ingresar sin la barra del navegador, con soporte offline y acceso directo con 1 toque.
+            </p>
+
+            <button
+              type="button"
+              onClick={handleOpenPwaModal}
+              className="w-full py-2.5 rounded-xl bg-[#00E5FF] text-[#080C14] text-xs font-black uppercase tracking-wider uf-glow-sm hover:bg-[#FFFFFF] transition-all flex items-center justify-center gap-2"
+            >
+              <Download className="w-4 h-4 stroke-[3]" />
+              <span>Instalar / Abrir Banner PWA</span>
             </button>
           </div>
         </div>

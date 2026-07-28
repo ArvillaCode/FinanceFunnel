@@ -28,7 +28,7 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ reason = 'missing' }) 
     setLoading(true);
 
     try {
-      const res = await supabaseService.activateLicenseForKey(user.id, keyCode.trim());
+      const res = await supabaseService.activateLicenseForKey(user.id, keyCode.trim(), user.email);
       if (!res.success) {
         setError(res.message);
       } else {

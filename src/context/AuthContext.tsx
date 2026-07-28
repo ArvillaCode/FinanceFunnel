@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { Profile, UserRole, License } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { supabaseService } from '../lib/supabaseService';
+import { tenantService } from '../lib/tenantService';
 
 interface AuthContextType {
   user: Profile | null;
@@ -55,6 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (user && !isDemoUser) {
       localStorage.setItem('finance_user_profile', JSON.stringify(user));
+      tenantService.initializeUserTenant(user, false);
     } else if (!user) {
       localStorage.removeItem('finance_user_profile');
     }
@@ -96,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             const profileObj: Profile = {
               id: session.user.id,
-              full_name: profile?.full_name || session.user.user_metadata?.full_name || userEmail.split('@')[0] || 'Gabriel Aristizábal',
+              full_name: profile?.full_name || session.user.user_metadata?.full_name || userEmail.split('@')[0] || 'Usuario',
               email: userEmail,
               role: userRole,
               is_banned: profile?.is_banned || false,
@@ -104,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             };
 
             setUser(profileObj);
+            tenantService.initializeUserTenant(profileObj, false);
 
             const lic = await supabaseService.getUserActiveLicense(session.user.id);
             setActiveLicense(lic);
@@ -132,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           const profileObj: Profile = {
             id: session.user.id,
-            full_name: profile?.full_name || session.user.user_metadata?.full_name || userEmail.split('@')[0] || 'Gabriel Aristizábal',
+            full_name: profile?.full_name || session.user.user_metadata?.full_name || userEmail.split('@')[0] || 'Usuario',
             email: userEmail,
             role: userRole,
             is_banned: profile?.is_banned || false,
@@ -140,6 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
 
           setUser(profileObj);
+          tenantService.initializeUserTenant(profileObj, false);
 
           const lic = await supabaseService.getUserActiveLicense(session.user.id);
           setActiveLicense(lic);
@@ -173,7 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const profileObj: Profile = {
           id: data.user.id,
-          full_name: profile?.full_name || 'Gabriel Aristizábal',
+          full_name: profile?.full_name || userEmail.split('@')[0] || 'Usuario',
           email: userEmail,
           role: userRole,
           is_banned: false,
@@ -182,6 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setUser(profileObj);
         localStorage.setItem('finance_user_profile', JSON.stringify(profileObj));
+        tenantService.initializeUserTenant(profileObj, false);
 
         const lic = await supabaseService.getUserActiveLicense(data.user.id);
         setActiveLicense(lic);
@@ -201,18 +206,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       setUser(superObj);
       localStorage.setItem('finance_user_profile', JSON.stringify(superObj));
+      tenantService.initializeUserTenant(superObj, false);
       return {};
     }
 
     // Demo sign in for non-superadmin
     setIsDemoUser(true);
-    setUser({
+    const demoObj: Profile = {
       id: `demo-${Date.now()}`,
       full_name: 'Usuario Demo',
       email: 'invitado@upfunnel.com',
       role: 'user',
       currency: 'USD',
-    });
+    };
+    setUser(demoObj);
+    tenantService.initializeUserTenant(demoObj, true);
     return {};
   };
 
@@ -242,6 +250,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setUser(profileObj);
         localStorage.setItem('finance_user_profile', JSON.stringify(profileObj));
+        tenantService.initializeUserTenant(profileObj, false);
         return {};
       }
     }
@@ -257,6 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setUser(profileObj);
     localStorage.setItem('finance_user_profile', JSON.stringify(profileObj));
+    tenantService.initializeUserTenant(profileObj, false);
     return {};
   };
 
@@ -272,6 +282,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('finance_user_profile');
     localStorage.removeItem('finance_transactions');
     localStorage.removeItem('finance_budgets');
+    localStorage.removeItem('finance_organizations');
+    localStorage.removeItem('finance_org_members');
+    localStorage.removeItem('finance_org_invitations');
+    localStorage.removeItem('finance_current_org_id');
   };
 
   const resetPassword = async (email: string): Promise<{ success: boolean; message: string }> => {
