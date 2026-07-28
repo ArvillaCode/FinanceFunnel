@@ -193,6 +193,8 @@ export const AiAdviceWidget: React.FC = () => {
     return sessions[0]?.id || `session-${Date.now()}`;
   });
 
+  const activeSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
+
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Procesando datos financieros...');
   const [customPrompt, setCustomPrompt] = useState('');
@@ -200,14 +202,23 @@ export const AiAdviceWidget: React.FC = () => {
   const [apiKeyInput, setApiKeyInput] = useState('');
   const hasKey = geminiService.hasApiKey();
 
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Auto-scroll to bottom on new message or loading state change
+  useEffect(() => {
+    scrollToBottom();
+  }, [activeSession?.messages, isLoading]);
+
   // Save sessions to localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('finance_ai_sessions', JSON.stringify(sessions));
     }
   }, [sessions]);
-
-  const activeSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
 
   const totalIncome = filteredTransactions
     .filter((t) => t.type === 'income')
@@ -598,6 +609,7 @@ export const AiAdviceWidget: React.FC = () => {
             </div>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Interactive Input Form */}

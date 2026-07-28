@@ -228,6 +228,28 @@ Actualmente registras **${data.currencySymbol}${data.income.toFixed(2)}** en ing
 - *¿Cuál es la proyección de mi flujo de caja?*`;
     }
 
+    if (lower.includes('categor') || lower.includes('gasta') || lower.includes('gasto')) {
+      const top = data.topCategories[0];
+      const topName = top ? top.name : 'General';
+      const topAmt = top ? top.total : 0;
+      const topPct = top ? top.percentage.toFixed(0) : '0';
+
+      return `### 📊 Categoría con Mayor Gasto
+Tu categoría con mayor nivel de gasto este mes es **${topName}**, acumulando **${data.currencySymbol}${topAmt.toFixed(2)}** (representando el **${topPct}%** de tus gastos totales).
+
+**Recomendaciones de Optimización**:
+- Revisa las transacciones registradas en **${topName}** para detectar consumos prescindibles.
+- Asigna un límite en el módulo de Presupuestos para esta categoría.
+- Tu balance acumulado disponible actual es de **${data.currencySymbol}${data.balance.toFixed(2)}**.`;
+    }
+
+    if (lower.includes('ahorro') || lower.includes('proyecc') || lower.includes('flujo')) {
+      return `### 🔮 Análisis de Tasa de Ahorro y Proyección
+* **Tasa de Ahorro Actual**: **${data.savingsRatio}%** de tus ingresos totales (${data.currencySymbol}${data.income.toFixed(2)}).
+* **Saldo Neto Actual**: **${data.currencySymbol}${data.balance.toFixed(2)}**.
+* **Proyección a 30 Días**: Manteniendo la tasa actual, tu disponible proyectado al cierre del ciclo será de aprox. **${data.currencySymbol}${(data.balance * 1.05).toFixed(2)}**.`;
+    }
+
     return `### 💡 Respuesta Asistida Upfunnel
 Analizando tus ingresos de **${data.currencySymbol}${data.income.toFixed(2)}** y gastos de **${data.currencySymbol}${data.expenses.toFixed(2)}** respecto a tu consulta **"${question}"**:
 
