@@ -228,8 +228,9 @@ Actualmente registras **${data.currencySymbol}${data.income.toFixed(2)}** en ing
 - *¿Cuál es la proyección de mi flujo de caja?*`;
     }
 
-    return `💡 **Respuesta Asistida Upfunnel**:
-Analizando tus ingresos de **${data.currencySymbol}${data.income.toFixed(2)}** y gastos de **${data.currencySymbol}${data.expenses.toFixed(2)}**, respecto a tu pregunta *"_${question}_"*:
-Te sugerimos monitorear tus categorías principales (${data.topCategories.slice(0, 2).map((c) => c.name).join(', ') || 'Generales'}) para optimizar tu flujo mensual y mantener tu saldo en **${data.currencySymbol}${data.balance.toFixed(2)}**.`;
+    return `### 💡 Respuesta Asistida Upfunnel
+Analizando tus ingresos de **${data.currencySymbol}${data.income.toFixed(2)}** y gastos de **${data.currencySymbol}${data.expenses.toFixed(2)}** respecto a tu consulta **"${question}"**:
+
+Te sugerimos monitorear tus categorías principales (**${data.topCategories.slice(0, 2).map((c) => c.name).join(', ') || 'Generales'}**) para optimizar tu flujo mensual y mantener tu saldo en **${data.currencySymbol}${data.balance.toFixed(2)}**.`;
   },
 };
