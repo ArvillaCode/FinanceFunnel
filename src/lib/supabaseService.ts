@@ -2,14 +2,29 @@ import { supabase } from './supabase';
 import { Transaction, Category, Budget, License, Profile, LicenseDuration, LicenseStatus, AuditLog } from '../types';
 import { generateLicenseKey, calculateLicenseExpiration } from './licenseUtils';
 
+export function ensureValidUuid(id: string): string {
+  if (!id) return '00000000-0000-4000-a000-000000000000';
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(id)) return id;
+
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i);
+    hash |= 0;
+  }
+  const hex = Math.abs(hash).toString(16).padStart(12, '0');
+  return `00000000-0000-4000-a000-${hex.slice(-12)}`;
+}
+
 export const supabaseService = {
   // --- TRANSACTIONS ---
   async getTransactions(userId: string): Promise<Transaction[]> {
     if (!supabase) return [];
+    const validUserId = ensureValidUuid(userId);
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', validUserId)
       .order('transaction_date', { ascending: false });
 
     if (error) {
@@ -21,11 +36,12 @@ export const supabaseService = {
 
   async createTransaction(userId: string, tx: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>): Promise<Transaction | null> {
     if (!supabase) return null;
+    const validUserId = ensureValidUuid(userId);
     const { data, error } = await supabase
       .from('transactions')
       .insert([
         {
-          user_id: userId,
+          user_id: validUserId,
           type: tx.type,
           amount: tx.amount,
           description: tx.description,
@@ -49,8 +65,9 @@ export const supabaseService = {
     txs: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[]
   ): Promise<Transaction[]> {
     if (!supabase) return [];
+    const validUserId = ensureValidUuid(userId);
     const payload = txs.map((tx) => ({
-      user_id: userId,
+      user_id: validUserId,
       type: tx.type,
       amount: tx.amount,
       description: tx.description,
@@ -107,10 +124,11 @@ export const supabaseService = {
   // --- CATEGORIES ---
   async getCategories(userId: string): Promise<Category[]> {
     if (!supabase) return [];
+    const validUserId = ensureValidUuid(userId);
     const { data, error } = await supabase
       .from('categories')
       .select('*')
-      .or(`is_default.eq.true,user_id.eq.${userId}`);
+      .or(`is_default.eq.true,user_id.eq.${validUserId}`);
 
     if (error) {
       console.error('Error al obtener categorías de Supabase:', error.message);
@@ -121,11 +139,12 @@ export const supabaseService = {
 
   async createCategory(userId: string, cat: Omit<Category, 'id'>): Promise<Category | null> {
     if (!supabase) return null;
+    const validUserId = ensureValidUuid(userId);
     const { data, error } = await supabase
       .from('categories')
       .insert([
         {
-          user_id: userId,
+          user_id: validUserId,
           name: cat.name,
           icon: cat.icon,
           color: cat.color,
@@ -146,10 +165,11 @@ export const supabaseService = {
   // --- BUDGETS ---
   async getBudgets(userId: string): Promise<Budget[]> {
     if (!supabase) return [];
+    const validUserId = ensureValidUuid(userId);
     const { data, error } = await supabase
       .from('budgets')
       .select('*')
-      .eq('user_id', userId);
+      .eq('user_id', validUserId);
 
     if (error) {
       console.error('Error al obtener presupuestos de Supabase:', error.message);
@@ -160,12 +180,13 @@ export const supabaseService = {
 
   async upsertBudget(userId: string, categoryId: string | null, amount: number, month: number, year: number): Promise<Budget | null> {
     if (!supabase) return null;
+    const validUserId = ensureValidUuid(userId);
     const { data, error } = await supabase
       .from('budgets')
       .upsert(
         [
           {
-            user_id: userId,
+            user_id: validUserId,
             category_id: categoryId,
             amount,
             month,
