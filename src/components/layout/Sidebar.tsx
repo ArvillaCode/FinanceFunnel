@@ -1,114 +1,88 @@
-import React from 'react';
-import { useAuth } from '../../context/AuthContext';
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { motion } from "motion/react";
 import {
-  LayoutDashboard,
-  ArrowRightLeft,
-  PieChart,
-  Tags,
-  Settings,
-  Users,
-  CreditCard,
-  FileSpreadsheet,
-  ChevronLeft,
-  ChevronRight,
-  PlusCircle,
-  KeyRound,
-} from 'lucide-react';
+  LayoutDashboard, ArrowRightLeft, Tags, Wallet, Settings,
+  PanelLeftClose, PanelLeftOpen, Sun, Moon,
+} from "lucide-react";
+import { useAuth } from "@/providers/auth-provider";
+import { useTheme } from "@/providers/theme-provider";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
-interface SidebarProps {
-  activeView: string;
-  onNavigate: (view: string) => void;
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
-  onOpenNewTxModal: () => void;
-}
+const NAV_ITEMS = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/transactions", label: "Transactions", icon: ArrowRightLeft },
+  { href: "/categories", label: "Categories", icon: Tags },
+  { href: "/budgets", label: "Budgets", icon: Wallet },
+  { href: "/settings", label: "Settings", icon: Settings },
+];
 
-export const Sidebar: React.FC<SidebarProps> = ({
-  activeView,
-  onNavigate,
-  isCollapsed,
-  onToggleCollapse,
-  onOpenNewTxModal,
-}) => {
-  const { user, isDemoUser } = useAuth();
-
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'transactions', label: 'Transacciones', icon: ArrowRightLeft },
-    { id: 'budgets', label: 'Presupuestos', icon: PieChart },
-    { id: 'categories', label: 'Categorías', icon: Tags },
-    { id: 'team', label: 'Equipo Multi-Tenant', icon: Users },
-    { id: 'billing', label: 'Planes y Suscripción', icon: CreditCard },
-    { id: 'datacenter', label: 'Centro de Datos', icon: FileSpreadsheet },
-    { id: 'settings', label: 'Configuración', icon: Settings },
-  ];
-
-  if (user?.role === 'superadmin' && !isDemoUser) {
-    navItems.unshift({ id: 'superadmin', label: 'Panel SuperAdmin', icon: KeyRound });
-  }
+export function Sidebar() {
+  const pathname = usePathname();
+  const { profile } = useAuth();
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside
-      className={`hidden md:flex flex-col border-r border-[#94A3B8]/20 bg-[#080C14] transition-all duration-300 z-20 ${
-        isCollapsed ? 'w-20' : 'w-64'
-      }`}
+    <motion.aside
+      animate={{ width: collapsed ? 64 : 256 }}
+      className="hidden md:flex flex-col border-r bg-card h-screen sticky top-0 overflow-hidden"
     >
-      {/* Collapse Toggle */}
-      <div className="p-4 flex items-center justify-end">
-        <button
-          onClick={onToggleCollapse}
-          className="p-1.5 rounded-xl text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#94A3B8]/10 transition-colors"
-          title={isCollapsed ? 'Expandir menú' : 'Colapsar menú'}
-        >
-          {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-        </button>
+      <div className={cn("flex items-center p-4 h-14", collapsed ? "justify-center" : "justify-between")}>
+        {!collapsed && (
+          <span className="font-bold text-lg tracking-tight">FinanceFunnel</span>
+        )}
+        <Button variant="ghost" size="icon" onClick={() => setCollapsed(!collapsed)}>
+          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </Button>
       </div>
 
-      {/* Quick Add Button */}
-      <div className="px-3 mb-4">
-        <button
-          onClick={onOpenNewTxModal}
-          className={`w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-[#00E5FF] hover:bg-[#00E5FF]/90 text-[#080C14] font-bold text-sm shadow-md shadow-[#00E5FF]/20 transition-all uf-glow-sm ${
-            isCollapsed ? 'px-0' : ''
-          }`}
-          title="Agregar Transacción"
-        >
-          <PlusCircle className="w-5 h-5 shrink-0" />
-          {!isCollapsed && <span>Nueva Transacción</span>}
-        </button>
-      </div>
-
-      {/* Nav List */}
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeView === item.id;
-          const isSuperAdminItem = item.id === 'superadmin';
+      <nav className="flex-1 space-y-1 px-2">
+        {NAV_ITEMS.map((item) => {
+          const isActive = pathname === item.href ||
+            (item.href !== "/" && pathname.startsWith(item.href));
           return (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-medium transition-all ${
-                isActive
-                  ? 'bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-[#00E5FF] font-bold shadow-xs uf-glow-sm'
-                  : isSuperAdminItem
-                  ? 'text-[#00E5FF] hover:bg-[#00E5FF]/10 font-bold'
-                  : 'text-[#94A3B8] hover:bg-[#94A3B8]/10 hover:text-[#FFFFFF]'
-              } ${isCollapsed ? 'justify-center px-0' : ''}`}
-            >
-              <Icon className={`w-4 h-4 shrink-0 ${isActive || isSuperAdminItem ? 'text-[#00E5FF]' : ''}`} />
-              {!isCollapsed && <span>{item.label}</span>}
-            </button>
+            <Link key={item.href} href={item.href}>
+              <Button
+                variant={isActive ? "secondary" : "ghost"}
+                className={cn("w-full", collapsed ? "justify-center px-2" : "justify-start")}
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
+              </Button>
+            </Link>
           );
         })}
       </nav>
 
-      {/* Sidebar Footer */}
-      {!isCollapsed && (
-        <div className="p-4 border-t border-[#94A3B8]/15 text-[11px] text-[#94A3B8] text-center font-mono">
-          Upfunnel SaaS Enterprise v2.0
-        </div>
-      )}
-    </aside>
+      <div className={cn("space-y-2 p-4 border-t", collapsed && "flex flex-col items-center")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+          className="w-full justify-center"
+        >
+          {resolvedTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {!collapsed && <span className="text-sm ml-2">{resolvedTheme === "dark" ? "Light" : "Dark"}</span>}
+        </Button>
+        {profile && (
+          <div className={cn("flex items-center gap-2", collapsed && "flex-col")}>
+            <Avatar className="h-8 w-8">
+              <AvatarFallback>{profile.full_name?.charAt(0)?.toUpperCase() || "U"}</AvatarFallback>
+            </Avatar>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{profile.full_name}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </motion.aside>
   );
-};
+}
