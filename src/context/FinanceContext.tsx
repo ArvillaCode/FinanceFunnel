@@ -7,6 +7,7 @@ import { supabaseService } from '../lib/supabaseService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { tenantService } from '../lib/tenantService';
 import { persistenceService } from '../lib/persistenceService';
+import { generateSeedData } from '../lib/demoData';
 
 export interface ToastMessage {
   id: string;
@@ -123,19 +124,25 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setCurrencyState(curr);
   };
 
-  // State: Transactions
+  // State: Transactions (Initial Seed if Empty)
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     const saved = localStorage.getItem('finance_transactions');
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
     }
-    return [];
+    return generateSeedData().transactions;
   });
 
   const [categories, setCategories] = useState<Category[]>(() => {
     const saved = localStorage.getItem('finance_categories');
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
     }
     return DEFAULT_CATEGORIES;
   });
@@ -143,9 +150,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [budgets, setBudgets] = useState<Budget[]>(() => {
     const saved = localStorage.getItem('finance_budgets');
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
     }
-    return [];
+    return generateSeedData().budgets;
   });
 
   // Guardado continuo en IndexedDB + Respaldo en LocalStorage
