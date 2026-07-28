@@ -1,22 +1,13 @@
 import React from 'react';
 import { useFinance } from '../../context/FinanceContext';
-import { getMonthlyTotals, getCategorySpending, formatCurrency } from '../../lib/utils';
+import { getMonthlyTotals, getCategorySpending } from '../../lib/utils';
 import { MetricCard } from './MetricCard';
 import { ExpensePieChart } from './ExpensePieChart';
 import { IncomeExpenseBarChart } from './IncomeExpenseBarChart';
 import { BalanceLineChart } from './BalanceLineChart';
 import { RecentTransactions } from './RecentTransactions';
 import { BudgetOverviewWidget } from './BudgetOverviewWidget';
-import { AiAdviceWidget } from './AiAdviceWidget';
-import {
-  Wallet,
-  TrendingUp,
-  TrendingDown,
-  PieChart as PieIcon,
-  ShoppingBag,
-  Target,
-  ArrowRight,
-} from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, ShoppingBag } from 'lucide-react';
 import { subMonths } from 'date-fns';
 import { Transaction } from '../../types';
 
@@ -37,7 +28,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     budgets,
     selectedMonth,
     selectedYear,
-    currency,
   } = useFinance();
 
   // Current month metrics
@@ -62,13 +52,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Category with highest expense
   const catSpendings = getCategorySpending(transactions, categories, selectedYear, selectedMonth);
   const topCategory = catSpendings[0] || null;
-
-  // General budget target
-  const generalBudget = budgets.find(
-    (b) => b.category_id === null && b.month === selectedMonth && b.year === selectedYear
-  );
-  const totalBudgetAmount = generalBudget?.amount || 2600;
-  const budgetUsedPct = Math.min(100, Math.round((currentTotals.expenses / totalBudgetAmount) * 100));
 
   return (
     <div className="space-y-6">
@@ -126,9 +109,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           delay={0.2}
         />
       </div>
-
-      {/* Gemini AI Advice Widget */}
-      <AiAdviceWidget />
 
       {/* Main Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
