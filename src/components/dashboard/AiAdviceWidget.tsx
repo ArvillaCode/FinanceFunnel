@@ -57,7 +57,7 @@ export const AiAdviceWidget: React.FC = () => {
     setIsLoading(true);
     setActiveAnalysisMode('express');
     try {
-      const advice = await geminiService.generateExpressDiagnosis(contextualData);
+      const advice = await geminiService.generateExpressDiagnosis(getFinancialContext());
       setAdviceText(advice);
     } catch (err) {
       setAdviceText('Error al procesar el diagnóstico financiero.');
