@@ -72,34 +72,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Welcome Banner */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-indigo-300">
-              Resumen Financiero
-            </span>
-            <h2 className="text-2xl font-black tracking-tight mt-1">
-              Hola, ¡bienvenido a tu dashboard!
-            </h2>
-            <p className="text-xs text-indigo-200 mt-1 max-w-lg">
-              Tienes un saldo neto de{' '}
-              <strong className="text-white underline">
-                {formatCurrency(currentTotals.balance, currency)}
-              </strong>{' '}
-              este mes. Revisa tus gráficos e indicadores a continuación.
-            </p>
-          </div>
-
-          <button
-            onClick={onOpenNewTxModal}
-            className="self-start md:self-auto px-4 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02]"
-          >
-            + Registrar Ingreso/Gasto
-          </button>
-        </div>
-      </div>
-
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Available Balance */}
