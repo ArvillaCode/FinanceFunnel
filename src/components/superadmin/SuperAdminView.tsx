@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth, isSuperAdminEmail } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { useFinance } from '../../context/FinanceContext';
 import { supabaseService } from '../../lib/supabaseService';
 import { License, Profile, LicenseDuration, LicenseStatus, AuditLog } from '../../types';
@@ -128,12 +128,12 @@ export const SuperAdminView: React.FC = () => {
   const handleToggleRole = async (targetUser: Profile) => {
     if (!user) return;
 
-    if (isSuperAdminEmail(targetUser.email)) {
-      alert('🔒 El usuario Root SuperAdmin (gabriel.au2023@gmail.com) está protegido por la arquitectura del sistema y su rol no puede ser modificado.');
+    if (targetUser.role === 'superadmin') {
+      alert('🔒 Los SuperAdmins están protegidos y su rol no puede ser modificado.');
       return;
     }
 
-    const newRole = targetUser.role === 'superadmin' ? 'user' : 'superadmin';
+    const newRole = 'user';
     if (!confirm(`¿Cambiar el rol de ${targetUser.email} a "${newRole}"?`)) return;
 
     try {
@@ -153,8 +153,8 @@ export const SuperAdminView: React.FC = () => {
   const handleToggleBan = async (targetUser: Profile) => {
     if (!user) return;
 
-    if (isSuperAdminEmail(targetUser.email)) {
-      alert('🔒 El usuario Root SuperAdmin (gabriel.au2023@gmail.com) está protegido y no puede ser baneado del sistema.');
+    if (targetUser.role === 'superadmin') {
+      alert('🔒 Los SuperAdmins están protegidos y no pueden ser baneados del sistema.');
       return;
     }
 
@@ -485,7 +485,7 @@ export const SuperAdminView: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-[#94A3B8]/15">
                   {filteredUsers.map((u) => {
-                    const isRoot = isSuperAdminEmail(u.email);
+                    const isRoot = u.role === 'superadmin';
                     return (
                       <tr key={u.id} className="hover:bg-[#94A3B8]/5 transition-colors">
                         <td className="p-4 font-bold text-[#FFFFFF]">
@@ -495,14 +495,12 @@ export const SuperAdminView: React.FC = () => {
                         <td className="p-4">
                           <span
                             className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase ${
-                              isRoot
+                              u.role === 'superadmin'
                                 ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40 uf-glow-sm'
-                                : u.role === 'superadmin'
-                                ? 'bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/30'
                                 : 'bg-[#94A3B8]/10 text-[#94A3B8] border border-[#94A3B8]/30'
                             }`}
                           >
-                            {isRoot ? 'ROOT SUPERADMIN (PROTEGIDO)' : u.role === 'superadmin' ? 'SUPERADMIN' : 'USUARIO'}
+                            {u.role === 'superadmin' ? 'SUPERADMIN (PROTEGIDO)' : 'USUARIO'}
                           </span>
                         </td>
                         <td className="p-4">

@@ -75,7 +75,7 @@ const INITIAL_FILTER: TransactionFilter = {
 };
 
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, isDemoUser } = useAuth();
   const activeUserIdRef = useRef(user?.id);
   activeUserIdRef.current = user?.id;
   const currentYM = getCurrentYearMonth();
@@ -194,15 +194,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
       document.addEventListener('visibilitychange', handleVisibilityChange);
 
-      // Regular polling fallback every 5 seconds for instant cross-device sync
-      const pollInterval = setInterval(() => {
-        supabaseService.getTransactions(user.id).then((txs) => {
-          if (txs && txs.length !== transactions.length) {
-            setTransactions(txs);
-          }
-        });
-      }, 5000);
-
       if (supabase) {
         const channel = supabase
           .channel('finance_realtime_sync')
@@ -234,7 +225,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return () => {
           window.removeEventListener('focus', handleFocus);
           document.removeEventListener('visibilitychange', handleVisibilityChange);
-          clearInterval(pollInterval);
           supabase.removeChannel(channel);
         };
       }
@@ -242,10 +232,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return () => {
         window.removeEventListener('focus', handleFocus);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
-        clearInterval(pollInterval);
       };
     } else if (user) {
-      const seed = generateSeedData();
+      const seed = isDemoUser ? generateSeedData() : { transactions: [], budgets: [] };
       Promise.all([
         persistenceService.loadTransactions(user.id),
         Promise.resolve(persistenceService.loadCategories(user.id)),

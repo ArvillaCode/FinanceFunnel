@@ -256,22 +256,22 @@ export const supabaseService = {
   async getUserActiveLicense(userId: string): Promise<License | null> {
     if (supabase) {
       try {
-        const { data: userLicense } = await supabase
-          .from('user_licenses')
-          .select('license_id, licenses(*)')
-          .eq('user_id', userId)
-          .limit(1)
-          .maybeSingle();
+        const { data, error } = await supabase.rpc('get_user_active_license', {
+          p_user_id: userId,
+        });
 
-        if (userLicense) {
-          const rawLic = (userLicense as any).licenses;
-          if (rawLic) {
-            if (rawLic.expires_at && new Date(rawLic.expires_at) < new Date() && rawLic.status === 'active') {
-              await supabase.from('licenses').update({ status: 'expired' }).eq('id', rawLic.id);
-              return { ...rawLic, status: 'expired' };
-            }
-            return rawLic as License;
+        if (error) {
+          console.warn('Error consultando licencia vía RPC:', error.message);
+        }
+
+        if (data && Array.isArray(data) && data.length > 0) {
+          const lic = data[0] as License;
+          if (lic.expires_at && new Date(lic.expires_at) < new Date() && lic.status === 'active') {
+            await supabase.from('licenses').update({ status: 'expired' }).eq('id', lic.id);
+            return { ...lic, status: 'expired' };
           }
+          localStorage.setItem(`user_active_license_${userId}`, JSON.stringify(lic));
+          return lic;
         }
       } catch (err) {
         console.warn('Error consultando licencia en Supabase:', err);

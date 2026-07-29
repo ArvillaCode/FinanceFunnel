@@ -113,7 +113,8 @@ export interface UserLicense {
   id: string;
   user_id: string;
   license_id: string;
-  assigned_at: string;
+  assigned_at?: string;
+  created_at?: string;
 }
 
 export interface AuditLog {

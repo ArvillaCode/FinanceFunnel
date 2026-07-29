@@ -103,7 +103,7 @@ export const AuthScreen: React.FC = () => {
                   <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
                   <input
                     type="text"
-                    placeholder="Ej. Gabriel Aristizábal"
+                    placeholder="Ej. Juan Pérez"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 bg-[#080C14] border border-[#94A3B8]/30 rounded-xl text-xs font-medium text-[#FFFFFF] focus:outline-none focus:border-[#00E5FF] transition-colors"

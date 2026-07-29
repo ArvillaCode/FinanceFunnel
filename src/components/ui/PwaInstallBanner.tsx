@@ -72,16 +72,7 @@ export const PwaInstallBanner: React.FC = () => {
     window.addEventListener('open-pwa-banner', handleOpenBanner);
     window.addEventListener('appinstalled', handleInstalled);
 
-    let iosTimer: ReturnType<typeof setTimeout> | undefined;
-    if (iosCheck && !isStandalone && !isDismissed) {
-      iosTimer = setTimeout(() => {
-        setShowManualGuide(true);
-        setIsVisible(true);
-      }, 1500);
-    }
-
     return () => {
-      if (iosTimer) clearTimeout(iosTimer);
       window.removeEventListener('pwa-prompt-ready', handlePromptReady);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('open-pwa-banner', handleOpenBanner);

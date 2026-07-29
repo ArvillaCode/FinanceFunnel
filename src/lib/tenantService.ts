@@ -7,60 +7,24 @@ const STORAGE_CURRENT_ORG_KEY = 'finance_current_org_id';
 
 const DEMO_ORGS: Organization[] = [
   {
-    id: 'org-personal',
-    name: 'Finanzas Personales',
-    slug: 'finanzas-personales',
-    owner_id: 'superadmin-gabriel-id',
-    plan_tier: 'pro',
+    id: 'demo-org-1',
+    name: 'Demo Space',
+    slug: 'demo-space',
+    owner_id: 'demo-owner',
+    plan_tier: 'starter',
     member_count: 1,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'org-company',
-    name: 'Upfunnel Agency & Corp',
-    slug: 'upfunnel-agency',
-    owner_id: 'superadmin-gabriel-id',
-    plan_tier: 'enterprise',
-    member_count: 3,
     created_at: new Date().toISOString(),
   },
 ];
 
 const DEMO_MEMBERS: OrganizationMember[] = [
   {
-    id: 'm-1',
-    organization_id: 'org-personal',
-    user_id: 'superadmin-gabriel-id',
-    full_name: 'Gabriel Aristizábal',
-    email: 'gabriel.au2023@gmail.com',
+    id: 'demo-m-1',
+    organization_id: 'demo-org-1',
+    user_id: 'demo-owner',
+    full_name: 'Demo User',
+    email: 'admin@demo.local',
     role: 'owner',
-    joined_at: new Date().toISOString(),
-  },
-  {
-    id: 'm-2',
-    organization_id: 'org-company',
-    user_id: 'superadmin-gabriel-id',
-    full_name: 'Gabriel Aristizábal',
-    email: 'gabriel.au2023@gmail.com',
-    role: 'owner',
-    joined_at: new Date().toISOString(),
-  },
-  {
-    id: 'm-3',
-    organization_id: 'org-company',
-    user_id: 'user-laura',
-    full_name: 'Laura Gómez',
-    email: 'laura@upfunnel.com',
-    role: 'admin',
-    joined_at: new Date().toISOString(),
-  },
-  {
-    id: 'm-4',
-    organization_id: 'org-company',
-    user_id: 'user-carlos',
-    full_name: 'Carlos Mendoza',
-    email: 'carlos@upfunnel.com',
-    role: 'member',
     joined_at: new Date().toISOString(),
   },
 ];
@@ -69,10 +33,7 @@ export const tenantService = {
   initializeUserTenant(user: { id: string; email: string; full_name?: string }, isDemo: boolean = false): void {
     if (typeof localStorage === 'undefined') return;
 
-    const email = (user.email || '').trim().toLowerCase();
-    const isSuper = email === 'gabriel.au2023@gmail.com';
-
-    if (isDemo || isSuper) {
+    if (isDemo) {
       const savedOrgs = localStorage.getItem(STORAGE_ORGS_KEY);
       if (!savedOrgs) {
         localStorage.setItem(STORAGE_ORGS_KEY, JSON.stringify(DEMO_ORGS));
@@ -97,13 +58,14 @@ export const tenantService = {
       members = [];
     }
 
-    // Filter out Gabriel's demo orgs and demo members for regular users
+    // Filter out any orgs/members not belonging to this user
+    const userEmail = (user.email || '').trim().toLowerCase();
     const userOrgs = orgs.filter((o) => o.owner_id === user.id || o.id === `org-${user.id}`);
-    const userMembers = members.filter((m) => m.email === email || userOrgs.some((o) => o.id === m.organization_id));
+    const userMembers = members.filter((m) => m.email === userEmail || userOrgs.some((o) => o.id === m.organization_id));
 
     if (userOrgs.length === 0) {
       const newOrgId = `org-${user.id}`;
-      const nameOwner = user.full_name || email.split('@')[0] || 'Mi Espacio';
+      const nameOwner = user.full_name || userEmail.split('@')[0] || 'Mi Espacio';
       const userOrg: Organization = {
         id: newOrgId,
         name: `Finanzas de ${nameOwner}`,
